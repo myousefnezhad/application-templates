@@ -1,0 +1,13 @@
+[package]
+name = "cryptography"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rsa = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+bcrypt = { workspace = true }
+app_config = { workspace = true }
+base64-url = { workspace = true }
+jsonwebtoken = { workspace = true }

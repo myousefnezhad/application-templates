@@ -1,0 +1,29 @@
+[package]
+name = "error"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rsa = { workspace = true }
+log = { workspace = true }
+axum = { workspace = true }
+rmcp = { workspace = true }
+sqlx = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+bcrypt = { workspace = true }
+askama = { workspace = true }
+base64-url = { workspace = true }
+serde_json = { workspace = true }
+rmcp-macros = { workspace = true }
+derive_more = { workspace = true }
+jsonwebtoken = { workspace = true }
+deadpool-redis = { workspace = true }
+adk-agent = { workspace = true }
+adk-tool  = { workspace = true }
+adk-core  = { workspace = true }
+adk-cli   = { workspace = true }
+adk-model = { workspace = true }
+adk-rust  = { workspace = true }
+adk-runner = { workspace = true }
+rmcp09 = { workspace = true }

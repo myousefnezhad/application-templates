@@ -1,0 +1,7 @@
+mcp==1.22.0
+rich==14.2.0
+langchain==1.0.8
+langgraph==1.0.3
+langchain_openai==1.0.3
+langchain-mcp-adapters==0.1.13
+langgraph-checkpoint-postgres==3.0.2

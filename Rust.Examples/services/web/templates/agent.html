@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agent Demo: Chat</title>
+  <link href="/assets/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/datatables.min.css" rel="stylesheet">
+  <script src="/assets/jquery.js"></script>
+  <script src="/assets/bootstrap.min.js"></script>
+  <script src="/assets/datatables.min.js"></script>
+  <style>
+    body {
+      background: #f6f7fb;
+    }
+
+    .chat-card {
+      max-width: 70%;
+      max-height: 80%;
+      margin: 40px auto;
+      border: 0;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, .08);
+      overflow: hidden;
+    }
+
+    .chat-header {
+      background: #ffffff;
+      border-bottom: 1px solid rgba(0, 0, 0, .08);
+      padding: 14px 16px;
+    }
+
+    .chat-body {
+      height: 420px;
+      overflow-y: auto;
+      padding: 16px;
+      background: #fbfcff;
+    }
+
+    .msg-row {
+      display: flex;
+      margin-bottom: 10px;
+    }
+
+    .msg-row.user {
+      justify-content: flex-end;
+    }
+
+    .msg-row.bot {
+      justify-content: flex-start;
+    }
+
+    .bubble {
+      max-width: 78%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      line-height: 1.35;
+      position: relative;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .user .bubble {
+      background: #2b6cff;
+      color: #fff;
+      border-bottom-right-radius: 6px;
+    }
+
+    .bot .bubble {
+      background: #ffffff;
+      color: #222;
+      border: 1px solid rgba(0, 0, 0, .08);
+      border-bottom-left-radius: 6px;
+    }
+
+    .meta {
+      font-size: 11px;
+      opacity: .7;
+      margin-top: 4px;
+    }
+
+    .typing {
+      font-size: 12px;
+      opacity: .7;
+      margin: 4px 0 12px;
+    }
+
+    .chat-footer {
+      background: #ffffff;
+      border-top: 1px solid rgba(0, 0, 0, .08);
+      padding: 12px;
+    }
+
+    .input-group .form-control {
+      border-radius: 999px 0 0 999px;
+    }
+
+    .input-group .btn {
+      border-radius: 0 999px 999px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Agent</h1>
+  <a class="btn btn-primary my-3" href="/">Dashboard</a>
+  <a class="btn btn-primary my-3" href="/customer">Customer Information</a>
+  <a class="btn btn-primary my-3" href="/kb">Knowledge Based</a>
+  <a class="btn btn-primary my-3" href="/agent">Agent</a>
+  <button class="btn btn-primary my-3" onclick="logout()">Logout</button>
+    <div class="card chat-card">
+      <div class="chat-header d-flex align-items-center justify-content-between">
+        <div>
+          <strong>A Demo Agent</strong>
+          <div class="small text-muted">Customer Information</div>
+        </div>
+        <button id="clearBtn" class="btn btn-sm btn-outline-secondary">Clear</button>
+      </div>
+
+      <div id="chatBody" class="chat-body">
+        <!-- Messages injected here -->
+      </div>
+
+      <div class="chat-footer">
+        <form id="chatForm" autocomplete="off">
+          <div class="input-group">
+            <input id="chatInput" type="text" class="form-control" placeholder="Type a message..." />
+            <div class="input-group-append">
+              <button class="btn btn-primary" type="submit" id="submitBtn">Send</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chatBody = document.getElementById("chatBody");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const clearBtn = document.getElementById("clearBtn");
+    const submitBtn = document.getElementById("submitBtn");
+
+      document.addEventListener("DOMContentLoaded", async function () {
+        try {
+          const token = localStorage.getItem('jwtToken');
+          if (token === null) {
+            throw new Error("Token not found!");
+          }
+        
+          const response = await fetch('/auth/ping', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+          });
+
+          if (!response.ok) {
+              throw new Error('Login failed');
+          }
+          // Init
+          loadChat();
+          chatInput.focus();
+        } catch (error) {
+          console.log(error);
+          window.location = "/login";
+        }
+      });
+
+      function logout() {
+        try {
+          const token = localStorage.getItem('jwtToken');
+          if (token) {
+            fetch('/auth/logout', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({})
+            })
+            .then(response => {
+              if (!response.ok) {
+                const err = response.json();
+                throw new Error(err.message || 'Login failed. Please check your credentials.');
+              }
+            });
+          }
+        } catch (error) {
+          console.log(error);
+          alert(error);
+        }
+        localStorage.setItem('jwtToken', '');
+        location.reload(true);
+      }
+    // ---- Helpers ----
+    function pad2(n) {return String(n).padStart(2, "0");}
+    function timeStamp() {
+      const d = new Date();
+      return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }
+
+    function scrollToBottom() {
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function addMessage(sender, text) {
+      const row = document.createElement("div");
+      row.className = `msg-row ${sender}`;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML = `${sender === "user" ? "You" : "Bot"} • ${timeStamp()}`;
+
+      const wrap = document.createElement("div");
+      wrap.appendChild(bubble);
+      wrap.appendChild(meta);
+
+      row.appendChild(wrap);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function showTyping() {
+      const el = document.createElement("div");
+      el.id = "typingIndicator";
+      el.className = "typing";
+      el.textContent = "Bot is typing...";
+      chatBody.appendChild(el);
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      const el = document.getElementById("typingIndicator");
+      if (el) el.remove();
+    }
+
+    // ---- Persistence (optional) ----
+    function saveChat() {
+      localStorage.setItem("demo_chat_html", chatBody.innerHTML);
+    }
+    function loadChat() {
+      const saved = localStorage.getItem("demo_chat_html");
+      console.log(saved);
+      if (saved) {
+        chatBody.innerHTML = saved;
+      } else {
+        addMessage("bot", "Hi 🙃, I’m the agent in charge of providing customer information.");
+        saveChat();
+      }
+      scrollToBottom();
+    }
+    function clearChat() {
+      localStorage.removeItem("demo_chat_html");
+      localStorage.removeItem("session_id");
+      window.location.reload();
+    }
+
+    // ---- Events ----
+    chatForm.addEventListener("submit", async (e) => {
+      try {
+        e.preventDefault();
+        const token = localStorage.getItem('jwtToken');
+        if (token === null) {
+          throw new Error("Token not found!");
+        }
+        submitBtn.disabled = true;
+        const session_id = localStorage.getItem("session_id");
+        const content = chatInput.value;
+        if (!content.trim()) return;
+        addMessage("user", content);
+        chatInput.value = "";
+        saveChat();
+        showTyping();
+        const response = await fetch('/auth/agent', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({content, session_id})
+        });
+        if (!response.ok) {
+          throw new Error('Cannot load data');
+        }
+        const data = await response.json();
+        localStorage.setItem("session_id", data.session_id);
+        const resp = data.content;
+        hideTyping();
+        addMessage("bot", resp);
+        saveChat();
+        submitBtn.disabled = false;
+      } catch (e) {
+        console.log(e);
+        alert(e);
+        <!-- window.location = "/login"; -->
+      }
+    });
+    clearBtn.addEventListener("click", () => {
+      clearChat();
+    });
+  </script>
+</body>
+
+</html>

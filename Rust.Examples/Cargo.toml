@@ -1,0 +1,94 @@
+[workspace]
+resolver = "2"
+members = [
+  "libraries/adk_utils",
+  "libraries/agent", 
+  "libraries/app_state",
+  "libraries/config",
+  "libraries/cryptography",
+  "libraries/dto",
+  "libraries/error",
+  "libraries/log",
+  "libraries/middleware",
+  "libraries/redis",
+  "libraries/schema",
+  "libraries/tools",
+  "services/agent_cli",
+  "services/web",
+  "services/mcp", 
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+awc = "3.8.0"
+rsa = "0.9.7"
+anyhow = "1.0"
+rand = "0.8.5"
+log = "0.4.27"
+tower = "0.5.2"
+hyper = "1.7.0"
+askama = "0.15.0"
+bcrypt = "0.17.1"
+dotenv = "0.15.0"
+tracing = "0.1.44"
+sqlx-core = "0.8.6"
+adk-agent = "0.2.1"
+adk-tool = "0.2.1"
+adk-core  = "0.2.1"
+adk-cli   = "0.2.1"
+adk-runner = "0.2.1"
+base64-url = "3.0.2"
+mcp-macros = "0.12.0"
+env_logger = "0.11.8"
+adk-session = "0.2.1"
+derive_more = "2.1.0"
+adk-artifact = "0.2.1"
+rmcp-macros = "0.16.0"
+futures-util = "0.3.31"
+rust_decimal = "1.38.0"
+http-body-util = "0.1.3"
+tokio-pg-mapper = "0.2.0"
+tokio-postgres = "0.7.15"
+postgres-from-row = "0.5.2"
+futures = { version = "0.3" }
+tokio-pg-mapper-derive = "0.2.0"
+tokio-util = { version = "0.7" }
+serde_json = { version = "1.0" }
+async-trait = { version = "0.1" }
+tokio = { version = "1.4", features = ["full"] }
+axum = { version = "0.8.8", features = ["macros"] }
+chrono = {version ="0.4.41", features = ["serde"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+bigdecimal = { version = "0.4", features = ["serde"] }
+adk-rust  = { version = "0.2.1", features = ["tools"] }
+hyper-util = { version = "0.1.19", features = ["server"] }
+deadpool-redis = { version = "0.22", features = ["serde"] }
+postgres-types = { version = "0.2.9", features = ["derive"] }
+schemars = { version = "1.0", features = ["derive", "uuid1"] }
+tower-http = { version = "0.6.8", features = ["cors", "trace", "fs"] }
+reqwest = { version = "0.12", features = ["json", "native-tls"] }
+adk-model = { version = "0.2.1", features = ["openai", "ollama"] }
+serde = {  version = "1.0", features = ["derive", "serde_derive"] }
+jsonwebtoken = { version = "10.2.0", default-features = false, features = ["rust_crypto"] }
+sqlx = { version = "0.8.6", features = [ "runtime-tokio", "tls-native-tls", "postgres", "macros", "chrono", "uuid" ] }
+tracing-subscriber = { version = "0.3.22", features = [ "env-filter", "std", "fmt", ] }
+rmcp = { version = "0.16.0", features = [ "server", "macros", "client", "transport-io", "transport-streamable-http-server", "auth", "elicitation", "schemars", "client", "reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest" ] }
+rmcp09 = { package = "rmcp", version = "0.9.1", features = ["client", "reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
+
+# Internal Libraries
+app_adk_utils = { path = "./libraries/adk_utils", package = "adk_utils" }
+app_agent = { path = "./libraries/agent", package = "agent" }
+app_config = { path = "./libraries/config", package = "config" }
+app_cryptography = { path = "./libraries/cryptography", package = "cryptography" }
+app_dto = { path = "./libraries/dto", package = "dto" }
+app_error = { path = "./libraries/error", package = "error" }
+app_log = { path = "./libraries/log", package = "log" }
+app_state = { path = "./libraries/app_state", package = "app_state" }
+app_middleware = { path = "./libraries/middleware", package = "middleware" }
+app_redis = { path = "./libraries/redis", package = "redis" }
+app_schema = { path = "./libraries/schema", package = "schema" }
+app_tools = { path = "./libraries/tools", package = "tools" }
+app_llama_cpp = { path = "./libraries/llama_cpp", package = "llama_cpp" }

@@ -1,0 +1,46 @@
+[package]
+name = "agent"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+sqlx = { workspace = true }
+rand = { workspace = true }
+rmcp = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+hyper = { workspace = true }
+tower = { workspace = true }
+chrono = { workspace = true }
+dotenv = { workspace = true }
+anyhow = { workspace = true }
+rmcp09 = { workspace = true }
+futures = { workspace = true }
+tracing = { workspace = true }
+app_log = { workspace = true }
+app_dto = { workspace = true }
+app_error = { workspace = true }
+app_state = { workspace = true }
+app_redis = { workspace = true }
+adk-agent = { workspace = true }
+adk-tool  = { workspace = true }
+adk-core  = { workspace = true }
+adk-cli   = { workspace = true }
+adk-model = { workspace = true }
+adk-rust  = { workspace = true }
+app_schema = { workspace = true }
+adk-runner = { workspace = true }
+tower-http = { workspace = true }
+app_config = { workspace = true }
+serde_json = { workspace = true }
+hyper-util = { workspace = true }
+tokio-util = { workspace = true }
+rmcp-macros = { workspace = true }
+async-trait = { workspace = true }
+app_llama_cpp = { workspace = true }
+app_adk_utils = { workspace = true }
+app_middleware = { workspace = true }
+http-body-util = { workspace = true }
+app_cryptography = { workspace = true }
+tracing-subscriber = { workspace = true }

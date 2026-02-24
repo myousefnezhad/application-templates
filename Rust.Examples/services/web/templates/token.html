@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Token Checker</title>
+</head>
+<body>
+  <div id="message"></div>
+  <script>
+    // Helper function to parse query parameters from the URL
+    function getQueryParams() {
+      const params = {};
+      const queryString = window.location.search.substring(1);
+      const pairs = queryString.split("&");
+      for (let pair of pairs) {
+        if (pair === "") continue; // Skip if empty
+        const [key, value] = pair.split("=");
+        params[decodeURIComponent(key)] = decodeURIComponent(value || "");
+      }
+      return params;
+    }
+
+    // Get the query parameters and check for a "token"
+    const queryParams = getQueryParams();
+    const token = queryParams.token;
+    const messageDiv = document.getElementById("message");
+
+    if (token) {
+      // Save the token in localStorage under the key "jwtToken"
+      localStorage.setItem("jwtToken", token);
+      // Redirect to the home page
+      window.location.href = "/";
+    } else {
+      // No token found: display a message with a link to /login
+      messageDiv.innerHTML = 'Cannot find token. Please <a href="/login">login</a> to continue.';
+    }
+  </script>
+</body>
+</html>

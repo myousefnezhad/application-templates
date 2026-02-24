@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agent Demo: Customer</title>
+  <link href="/assets/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/datatables.min.css" rel="stylesheet">
+  <script src="/assets/jquery.js"></script>
+  <script src="/assets/bootstrap.min.js"></script>
+  <script src="/assets/datatables.min.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Customer Information</h1>
+  <a class="btn btn-primary my-3" href="/">Dashboard</a>
+  <a class="btn btn-primary my-3" href="/customer">Customer Information</a>
+  <a class="btn btn-primary my-3" href="/kb">Knowledge Based</a>
+  <a class="btn btn-primary my-3" href="/agent">Agent</a>
+  <button class="btn btn-primary my-3" onclick="logout()">Logout</button>
+    <table id="customerTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Industry</th>
+          <th>Account #</th>
+          <th>Balance (CAD)</th>
+          <th>Credit</th>
+          <th>Risk</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+      function logout() {
+        try {
+          const token = localStorage.getItem('jwtToken');
+          if (token) {
+            fetch('/auth/logout', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({})
+            })
+            .then(response => {
+              if (!response.ok) {
+                const err = response.json();
+                throw new Error(err.message || 'Login failed. Please check your credentials.');
+              }
+            });
+          }
+        } catch (error) {
+          console.log(error);
+          alert(error);
+        }
+        localStorage.setItem('jwtToken', '');
+        location.reload(true);
+      }
+    document.addEventListener("DOMContentLoaded", async function () {
+      try {
+        const token = localStorage.getItem('jwtToken');
+        if (token === null) {
+          throw new Error("Token not found!");
+        }
+        const response = await fetch('/auth/customer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Cannot load data');
+        }
+        const customers = await response.json();
+
+        const tbody = document.querySelector("#customerTable tbody");
+        tbody.innerHTML = ""; // Clear old rows
+
+
+        customers.forEach(c => {
+          const tr = document.createElement("tr");
+
+          // Format balance (string -> number safe)
+          const balance = Number(c.balance).toLocaleString("en-CA", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
+
+          // Risk class
+          const risk = (c.risk_level || "").toLowerCase();
+          let riskClass = "low";
+
+          if (risk === "medium") riskClass = "medium";
+          if (risk === "high") riskClass = "high";
+
+          tr.innerHTML = `
+                <td class="text-start">${c.id}</td>
+                <td>${c.first_name} ${c.last_name}</td>
+                <td>${c.email}</td>
+                <td>${c.industry_sector || "-"}</td>
+                <td>${c.account_number}</td>
+                <td>${balance}</td>
+                <td>${c.credit_score ?? "-"}</td>
+                <td class="${riskClass}">
+                    ${risk.charAt(0).toUpperCase() + risk.slice(1)}
+                </td>
+            `;
+
+          tbody.appendChild(tr);
+        });
+        new DataTable('#customerTable');
+
+
+      } catch (error) {
+        console.log(error);
+        alert(error);
+        window.location = "/login";
+      }
+    });
+  </script>
+</body>
+
+</html>

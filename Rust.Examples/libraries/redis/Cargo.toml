@@ -1,0 +1,18 @@
+[package]
+name = "redis"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+app_config = { workspace = true }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
+tokio-postgres = { workspace = true }
+deadpool-redis = { workspace = true }
+tokio-pg-mapper = { workspace = true }
+postgres-from-row = { workspace = true }
+tokio-pg-mapper-derive = { workspace = true }
+
