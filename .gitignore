@@ -10,3 +10,4 @@
 **/dist
 **/target
 **/server.crt
+**/.DS_Store
