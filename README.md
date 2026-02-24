@@ -7,7 +7,6 @@ This repository contains my personal developed collection of application templat
 
 It is designed to help developers quickly bootstrap modern, production-ready systems that integrate large language models (LLMs), agents, and data-driven workflows.
 
-⸻
 
 # Included Templates
 
@@ -19,7 +18,6 @@ The Python templates focus on LLM-based applications, including:
 
 These examples demonstrate practical patterns for building intelligent systems with modern LLM frameworks.
 
-⸻
 
 ## 🦀 Rust
 
@@ -37,7 +35,6 @@ It integrates with:
 
 This setup is suitable for building high-performance, scalable AI services.
 
-⸻
 
 ## ☕ Kotlin
 
@@ -55,7 +52,6 @@ These templates share business logic across platforms and demonstrate modern, cr
 	•	Enable rapid prototyping and deployment
 	•	Encourage community contributions
 
-⸻
 
 # Roadmap
 
@@ -63,10 +59,8 @@ More templates and examples will be added over time, including additional AI wor
 
 Contributions and suggestions are welcome.
 
-⸻
 
 # Usage
 
 Feel free to use, modify, and extend this repository for your own projects. If you find it useful, contributions and feedback are appreciated.
 
-⸻
