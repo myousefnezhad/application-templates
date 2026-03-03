@@ -10,7 +10,6 @@ import com.varabyte.kobweb.compose.ui.Alignment
 import com.varabyte.kobweb.compose.ui.Modifier
 import com.varabyte.kobweb.compose.ui.graphics.Colors
 import com.varabyte.kobweb.compose.ui.modifiers.*
-import com.varabyte.kobweb.silk.components.graphics.Image
 import com.varabyte.kobweb.silk.components.icons.CloseIcon
 import com.varabyte.kobweb.silk.components.icons.HamburgerIcon
 import com.varabyte.kobweb.silk.components.icons.MoonIcon
@@ -45,9 +44,14 @@ private fun NavLink(path: String, text: String) {
 }
 
 @Composable
-private fun MenuItems() {
-    NavLink("/", "Home")
-    NavLink("/about", "About")
+private fun MenuItems(isLogin: Boolean) {
+    if (!isLogin) {
+        NavLink("/login", "Login")
+        Spacer()
+        NavLink("/register", "Register")
+    } else {
+        NavLink("/", "Home")
+    }
 }
 
 @Composable
@@ -98,17 +102,19 @@ enum class SideMenuState {
 }
 
 @Composable
-fun NavHeader() {
+fun NavHeader(isLogin: Boolean) {
     Row(NavHeaderStyle.toModifier(), verticalAlignment = Alignment.CenterVertically) {
-        Link("https://kobweb.varabyte.com") {
-            // Block display overrides inline display of the <img> tag, so it calculates centering better
-            Image("/kobweb-logo.png", "Kobweb Logo", Modifier.height(2.cssRem).display(DisplayStyle.Block))
+//        Link("https://kobweb.varabyte.com") {
+//            // Block display overrides inline display of the <img> tag, so it calculates centering better
+//            Image("/kobweb-logo.png", "Kobweb Logo", Modifier.height(2.cssRem).display(DisplayStyle.Block))
+//        }
+        Row(Modifier.gap(1.5.cssRem).displayIfAtLeast(Breakpoint.MD), verticalAlignment = Alignment.CenterVertically) {
+            MenuItems(isLogin)
+
         }
 
         Spacer()
-
         Row(Modifier.gap(1.5.cssRem).displayIfAtLeast(Breakpoint.MD), verticalAlignment = Alignment.CenterVertically) {
-            MenuItems()
             ColorModeButton()
         }
 
@@ -126,6 +132,7 @@ fun NavHeader() {
 
             if (menuState != SideMenuState.CLOSED) {
                 SideMenu(
+                    isLogin,
                     menuState,
                     close = { menuState = menuState.close() },
                     onAnimationEnd = { if (menuState == SideMenuState.CLOSING) menuState = SideMenuState.CLOSED }
@@ -136,7 +143,7 @@ fun NavHeader() {
 }
 
 @Composable
-private fun SideMenu(menuState: SideMenuState, close: () -> Unit, onAnimationEnd: () -> Unit) {
+private fun SideMenu(isLogin: Boolean, menuState: SideMenuState, close: () -> Unit, onAnimationEnd: () -> Unit) {
     Overlay(
         Modifier
             .setVariable(OverlayVars.BackgroundColor, Colors.Transparent)
@@ -168,7 +175,7 @@ private fun SideMenu(menuState: SideMenuState, close: () -> Unit, onAnimationEnd
             ) {
                 CloseButton(onClick = { close() })
                 Column(Modifier.padding(right = 0.75.cssRem).gap(1.5.cssRem).fontSize(1.4.cssRem), horizontalAlignment = Alignment.End) {
-                    MenuItems()
+                    MenuItems(isLogin)
                 }
             }
         }
