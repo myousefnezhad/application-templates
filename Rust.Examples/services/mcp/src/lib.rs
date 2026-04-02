@@ -8,7 +8,7 @@ use app_redis::Redis;
 use app_state::AppState;
 use dotenv::dotenv;
 use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, session::never::NeverSessionManager,
+    session::never::NeverSessionManager, tower::StreamableHttpServerConfig,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::{env, sync::Arc};
@@ -48,10 +48,7 @@ pub async fn mcp_service() {
         agent_session: None,
     });
     // Loading Routes
-    let mcp_config = StreamableHttpServerConfig {
-        stateful_mode: false,
-        ..Default::default()
-    };
+    let mcp_config = StreamableHttpServerConfig::default().with_stateful_mode(false);
     let routes = router(app_state, NeverSessionManager::default().into(), mcp_config);
     // Setup TCP Port
     let tcp_listener = tokio::net::TcpListener::bind(&bind).await.unwrap();

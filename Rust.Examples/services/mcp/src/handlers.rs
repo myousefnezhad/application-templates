@@ -10,7 +10,7 @@ use rmcp::{
     serde_json::Value as JsonValue,
     service::RequestContext,
 };
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Clone)]
 pub struct McpHandler {
@@ -35,16 +35,16 @@ impl McpHandler {
 
 impl ServerHandler for McpHandler {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::LATEST,
-            capabilities: ServerCapabilities::builder()
+        ServerInfo::new(
+            ServerCapabilities::builder()
                 .enable_prompts()
                 .enable_resources()
                 .enable_tools()
                 .build(),
-            server_info: Implementation::from_build_env(),
-            instructions: Some("Unified Server".into()),
-        }
+        )
+        .with_instructions("Unified Server".to_owned())
+        .with_server_info(Implementation::from_build_env())
+        .with_protocol_version(ProtocolVersion::LATEST)
     }
 
     async fn initialize(
@@ -63,38 +63,23 @@ impl ServerHandler for McpHandler {
         let mut tools = Vec::new();
         // Calculator Tools
         for t in self.calculator.tool_router.list_all() {
-            tools.push(Tool {
-                output_schema: None,
-                ..t
-            });
+            tools.push(Tool::new(t.name, t.description.unwrap(), t.input_schema));
         }
         // Counter Tools
         for t in self.counter.tool_router.list_all() {
-            tools.push(Tool {
-                output_schema: None,
-                ..t
-            });
+            tools.push(Tool::new(t.name, t.description.unwrap(), t.input_schema));
         }
         // Customer Tools
         for t in self.customer.tool_router.list_all() {
-            tools.push(Tool {
-                output_schema: None,
-                ..t
-            });
+            tools.push(Tool::new(t.name, t.description.unwrap(), t.input_schema));
         }
         // Rag Tools
         for t in self.rag.tool_router.list_all() {
-            tools.push(Tool {
-                output_schema: None,
-                ..t
-            });
+            tools.push(Tool::new(t.name, t.description.unwrap(), t.input_schema));
         }
         // User Tools
         for t in self.user.tool_router.list_all() {
-            tools.push(Tool {
-                output_schema: None,
-                ..t
-            });
+            tools.push(Tool::new(t.name, t.description.unwrap(), t.input_schema));
         }
         Ok(ListToolsResult {
             tools,
@@ -187,14 +172,7 @@ impl ServerHandler for McpHandler {
         let mut all_prompts = Vec::new();
 
         // Helper closure to map internal definitions to public Prompt struct
-        let map_prompt = |p: Prompt| Prompt {
-            name: p.name,
-            description: p.description,
-            arguments: p.arguments,
-            icons: None,
-            title: None,
-            meta: None,
-        };
+        let map_prompt = |p: Prompt| Prompt::new(p.name, p.description, p.arguments);
 
         all_prompts.extend(counter_prompts.into_iter().map(map_prompt));
         all_prompts.extend(calc_prompts.into_iter().map(map_prompt));
@@ -250,8 +228,8 @@ impl ServerHandler for McpHandler {
         _ctx: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, McpError> {
         let content = self.counter.read_my_resource(&req.uri).await?;
-        Ok(ReadResourceResult {
-            contents: vec![ResourceContents::text(content, req.uri)],
-        })
+        Ok(ReadResourceResult::new(vec![ResourceContents::text(
+            content, req.uri,
+        )]))
     }
 }

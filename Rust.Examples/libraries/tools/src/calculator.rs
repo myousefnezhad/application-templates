@@ -81,21 +81,19 @@ impl CalculatorTools {
         Parameters(args): Parameters<MathArgs>,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, McpError> {
-        Ok(GetPromptResult {
-            description: Some("Math Explanation".into()),
-            messages: vec![
-                PromptMessage::new_text(
-                    PromptMessageRole::Assistant,
-                    "You are a helpful math tutor.",
+        Ok(GetPromptResult::new(vec![
+            PromptMessage::new_text(
+                PromptMessageRole::Assistant,
+                "You are a helpful math tutor.",
+            ),
+            PromptMessage::new_text(
+                PromptMessageRole::User,
+                format!(
+                    "Please explain the steps to solve this expression: {}",
+                    args.expression
                 ),
-                PromptMessage::new_text(
-                    PromptMessageRole::User,
-                    format!(
-                        "Please explain the steps to solve this expression: {}",
-                        args.expression
-                    ),
-                ),
-            ],
-        })
+            ),
+        ])
+        .with_description("Math Explanation".to_owned()))
     }
 }

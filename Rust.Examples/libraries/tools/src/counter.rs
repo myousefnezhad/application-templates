@@ -193,13 +193,11 @@ impl CounterTools {
             .fetch_one(&pg)
             .await
             .map_err(AppError::from)?;
-        Ok(GetPromptResult {
-            description: Some("Analysis".into()),
-            messages: vec![PromptMessage::new_text(
-                PromptMessageRole::User,
-                format!("Current: {}, Goal: {}", counter.counter, args.goal),
-            )],
-        })
+        Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            format!("Current: {}, Goal: {}", counter.counter, args.goal),
+        )])
+        .with_description("Analysis".to_owned()))
     }
 
     #[prompt(
@@ -244,13 +242,11 @@ impl CounterTools {
             _ => format!("The counter value is {}.", counter.counter), // brief default
         };
 
-        Ok(GetPromptResult {
-            description: Some("Counter State Summary".into()),
-            messages: vec![PromptMessage::new_text(
-                PromptMessageRole::User,
-                summary_text,
-            )],
-        })
+        Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            summary_text,
+        )])
+        .with_description("Counter State Summary".to_owned()))
     }
 
     #[prompt(
@@ -261,12 +257,10 @@ impl CounterTools {
         &self,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, McpError> {
-        Ok(GetPromptResult {
-            description: Some("Counter State Summary".into()),
-            messages: vec![PromptMessage::new_text(
-                PromptMessageRole::User,
-                format!("Summarize the following content:"),
-            )],
-        })
+        Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            format!("Summarize the following content:"),
+        )])
+        .with_description("Counter State Summary".to_owned()))
     }
 }
