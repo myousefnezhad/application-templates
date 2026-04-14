@@ -10,7 +10,7 @@ use rmcp::{
     serde_json::Value as JsonValue,
     service::RequestContext,
 };
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct McpHandler {

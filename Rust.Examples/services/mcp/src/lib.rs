@@ -48,7 +48,11 @@ pub async fn mcp_service() {
         agent_session: None,
     });
     // Loading Routes
-    let mcp_config = StreamableHttpServerConfig::default().with_stateful_mode(false);
+    // let ct = tokio_util::sync::CancellationToken::new();
+    //     .with_cancellation_token(ct.child_token());
+    let mcp_config = StreamableHttpServerConfig::default()
+        .with_stateful_mode(false)
+        .disable_allowed_hosts();
     let routes = router(app_state, NeverSessionManager::default().into(), mcp_config);
     // Setup TCP Port
     let tcp_listener = tokio::net::TcpListener::bind(&bind).await.unwrap();
