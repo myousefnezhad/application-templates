@@ -13,7 +13,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use chrono::{Duration, Utc};
-use rand::Rng;
+use sqlx::AssertSqlSafe;
 use std::sync::Arc;
 use tracing::error;
 
@@ -44,26 +44,25 @@ pub async fn post_login(
     let jwt_refresh_key = config.jwt_refresh_key.clone();
     let jwt_refresh_session_day = config.jwt_refresh_session_days;
     // Search for user
-    let user_info =
-        match sqlx::query_as::<_, User>(&format!("{} WHERE email = $1", User::select_query()))
-            .bind(&args.email)
-            .fetch_optional(&pg)
-            .await?
-        {
-            Some(user) => user,
-            None => {
-                return Err(AppError::new(AUTH_FAILD_MESSAGE, StatusCode::FORBIDDEN, 2));
-            }
-        };
+    let user_info = match sqlx::query_as::<_, User>(AssertSqlSafe(format!(
+        "{} WHERE email = $1",
+        User::select_query()
+    )))
+    .bind(&args.email)
+    .fetch_optional(&pg)
+    .await?
+    {
+        Some(user) => user,
+        None => {
+            return Err(AppError::new(AUTH_FAILD_MESSAGE, StatusCode::FORBIDDEN, 2));
+        }
+    };
     if !verify(&args.password, &user_info.password_hash)? {
         return Err(AppError::new(AUTH_FAILD_MESSAGE, StatusCode::FORBIDDEN, 2));
     }
     // User authentication is successed, generating login
     // Access Token
-    let session: u64 = {
-        let mut rng = rand::thread_rng();
-        rng.r#gen()
-    };
+    let session: u64 = rand::random();
     let iat = Utc::now().timestamp();
     let exp = (Utc::now() + Duration::minutes(jwt_access_session_min)).timestamp();
     let email = user_info.email.to_string().clone();

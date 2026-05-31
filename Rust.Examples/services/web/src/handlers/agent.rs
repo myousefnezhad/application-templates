@@ -109,7 +109,7 @@ pub async fn post_agent(
     // Making Agent Runner
     let user_input = Content::new("user").with_text(args.content);
     let mut stream = match agent_runner
-        .run(user_id.clone(), agent_current_session.clone(), user_input)
+        .run_str(&user_id, &agent_current_session, user_input)
         .await
     {
         Ok(s) => s,

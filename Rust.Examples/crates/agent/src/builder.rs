@@ -1,14 +1,15 @@
 use adk_core::{ReadonlyContext, Toolset};
 use adk_model::{OpenAIClient, OpenAIConfig};
 use adk_runner::Runner;
-use adk_rust::prelude::{GoogleSearchTool, LlmAgentBuilder, McpToolset, RunnerConfig};
+use adk_rust::prelude::{GoogleSearchTool, LlmAgentBuilder};
+use adk_tool::McpToolset;
 use app_adk_utils::{
     content::SimpleContext,
     session::{postgres::PgSessionService, tools::AdkInjectSessionTool},
 };
 use app_config::AppConfig;
 use app_error::AppError;
-use rmcp09::{
+use rmcp::{
     ServiceExt,
     transport::streamable_http_client::{
         StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -44,13 +45,14 @@ pub async fn agent_builder(
         base_url: Some(config.llm_base_url.clone()),
         project_id: None,
         organization_id: None,
+        reasoning_effort: None,
     };
     let llm_model = OpenAIClient::new(model_config).unwrap();
     // MCP Tool Config
     let mcp_cfg = StreamableHttpClientTransportConfig::with_uri(config.mcp_base_url.clone())
         .auth_header(&config.mcp_token.clone());
     let transport = StreamableHttpClientTransport::from_config(mcp_cfg);
-    let mcp_client = ().serve(transport).await?;
+    let mcp_client = ().serve(transport).await.map_err(|e| AppError::internal(e.to_string()))?;
     let toolset = McpToolset::new(mcp_client);
     let _cancel = toolset.cancellation_token().await;
     let ctx: Arc<dyn ReadonlyContext> = Arc::new(SimpleContext {
@@ -73,13 +75,12 @@ pub async fn agent_builder(
     let agent = Arc::new(builder.build()?);
     // Agent Runner
     // let artifacts = Arc::new(InMemoryArtifactService::new());
-    let agnet_runner = Arc::new(Runner::new(RunnerConfig {
-        app_name: config.agent_app_name.to_string(),
-        agent: agent,
-        session_service: agent_sessions.clone(),
-        artifact_service: None,
-        memory_service: None,
-        run_config: None, // Uses default SSE streaming
-    })?);
+    let agnet_runner = Arc::new(
+        Runner::builder()
+            .app_name(config.agent_app_name.to_string())
+            .agent(agent)
+            .session_service(agent_sessions.clone())
+            .build()?,
+    );
     Ok((agnet_runner, agent_sessions))
 }

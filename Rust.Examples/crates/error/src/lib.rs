@@ -2,20 +2,19 @@ use adk_core::AdkError;
 use adk_rust::anyhow::Error as AdkRustError;
 use askama::Error as AskamaError;
 use axum::{
-    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
+    Json,
 };
 use bcrypt::BcryptError;
-use deadpool_redis::{CreatePoolError, redis::RedisError};
+use deadpool_redis::{redis::RedisError, CreatePoolError};
 use jsonwebtoken::errors::Error as JwtError;
 use log::warn;
-use rmcp::{ErrorData, model::ErrorCode};
-use rmcp09::service::ClientInitializeError;
+use rmcp::{model::ErrorCode, ErrorData};
 use rsa::Error as RsaError;
 use serde::Serialize;
-use serde_json::Error as JsonError;
 use serde_json::json;
+use serde_json::Error as JsonError;
 use sqlx::Error as SqlxError;
 use std::{
     env::VarError, error::Error as StdError, fmt, io::Error as IoError, num::TryFromIntError,
@@ -124,16 +123,6 @@ impl From<AdkRustError> for AppError {
 
 impl From<AdkError> for AppError {
     fn from(value: AdkError) -> Self {
-        Self::new(
-            format!("{value:?}"),
-            StatusCode::BAD_REQUEST,
-            SYSTEM_ERROR_CODE_AGENT,
-        )
-    }
-}
-
-impl From<ClientInitializeError> for AppError {
-    fn from(value: ClientInitializeError) -> Self {
         Self::new(
             format!("{value:?}"),
             StatusCode::BAD_REQUEST,

@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 rsa = { workspace = true }
 rand = { workspace = true }
+rand08 = { workspace = true }
 serde = { workspace = true }
 bcrypt = { workspace = true }
 app_config = { workspace = true }

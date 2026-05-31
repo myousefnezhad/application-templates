@@ -11,6 +11,7 @@ use rmcp::{
     },
     tool, tool_router,
 };
+use sqlx::AssertSqlSafe;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -34,12 +35,14 @@ impl UserTools {
         Parameters(args): Parameters<McpGetUserByEmailInput>,
     ) -> Result<Json<McpGetUserByEmailOutput>, McpError> {
         let pg = self.state.pg.clone();
-        let result =
-            sqlx::query_as::<_, User>(&format!("{} WHERE email = $1", &User::select_query()))
-                .bind(&args.email)
-                .fetch_one(&pg)
-                .await
-                .map_err(AppError::from)?;
+        let result = sqlx::query_as::<_, User>(AssertSqlSafe(format!(
+            "{} WHERE email = $1",
+            &User::select_query()
+        )))
+        .bind(&args.email)
+        .fetch_one(&pg)
+        .await
+        .map_err(AppError::from)?;
         Ok(Json(McpGetUserByEmailOutput { result }))
     }
 

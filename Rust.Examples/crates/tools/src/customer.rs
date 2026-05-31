@@ -18,9 +18,10 @@ use rmcp::{
     },
     tool, tool_router,
 };
+use sqlx::AssertSqlSafe;
 use std::sync::Arc;
-#[derive(Clone)]
 
+#[derive(Clone)]
 pub struct CustomerTools {
     state: Arc<AppState>,
     pub tool_router: ToolRouter<Self>,
@@ -73,7 +74,7 @@ impl CustomerTools {
                 ),
             }
         );
-        let customers: Vec<Customer> = sqlx::query_as::<_, Customer>(&query)
+        let customers: Vec<Customer> = sqlx::query_as::<_, Customer>(AssertSqlSafe(query))
             .fetch_all(&pg)
             .await
             .map_err(AppError::from)?;
@@ -121,7 +122,7 @@ impl CustomerTools {
             },
             &args.score
         );
-        let customer_list: Vec<Customer> = sqlx::query_as::<_, Customer>(&query)
+        let customer_list: Vec<Customer> = sqlx::query_as::<_, Customer>(AssertSqlSafe(query))
             .fetch_all(&pg)
             .await
             .map_err(AppError::from)?;
@@ -142,7 +143,7 @@ impl CustomerTools {
             &Customer::select_base(),
             &args.risk.to_string(),
         );
-        let customer_list: Vec<Customer> = sqlx::query_as::<_, Customer>(&query)
+        let customer_list: Vec<Customer> = sqlx::query_as::<_, Customer>(AssertSqlSafe(query))
             .fetch_all(&pg)
             .await
             .map_err(AppError::from)?;

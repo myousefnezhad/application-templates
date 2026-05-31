@@ -9,12 +9,13 @@ use axum::{
     extract::{Json, State},
     http::{HeaderMap, StatusCode},
 };
+use sqlx::AssertSqlSafe;
 use std::sync::Arc;
 use tracing::*;
 
 pub async fn get_user(State(state): State<Arc<AppState>>) -> Result<Json<Vec<User>>, AppError> {
     let pg = state.pg.clone();
-    let res = sqlx::query_as::<_, User>(&User::select_query())
+    let res = sqlx::query_as::<_, User>(User::select_query())
         .fetch_all(&pg)
         .await?;
     debug!("{:?}", &res);
@@ -29,7 +30,7 @@ pub async fn post_user(
 ) -> Result<StatusCode, AppError> {
     let pg = state.pg.clone();
     let hash_password = hash(&args.password)?.to_string();
-    sqlx::query(&User::insert_query())
+    sqlx::query(User::insert_query())
         .bind(&args.name)
         .bind(&args.email)
         .bind(&hash_password)
@@ -47,17 +48,19 @@ pub async fn patch_change_password(
     let pg = state.pg.clone();
     let redis = state.redis.clone();
     // Search for user
-    let user_info =
-        match sqlx::query_as::<_, User>(&format!("{} WHERE email = $1", User::select_query()))
-            .bind(&args.email)
-            .fetch_optional(&pg)
-            .await?
-        {
-            Some(user) => user,
-            None => {
-                return Err(AppError::new(AUTH_FAILD_MESSAGE, StatusCode::FORBIDDEN, 2));
-            }
-        };
+    let user_info = match sqlx::query_as::<_, User>(AssertSqlSafe(format!(
+        "{} WHERE email = $1",
+        User::select_query()
+    )))
+    .bind(&args.email)
+    .fetch_optional(&pg)
+    .await?
+    {
+        Some(user) => user,
+        None => {
+            return Err(AppError::new(AUTH_FAILD_MESSAGE, StatusCode::FORBIDDEN, 2));
+        }
+    };
     // Verify current password
     if !verify(&args.password, &user_info.password_hash)? {
         return Err(AppError::new(AUTH_FAILD_MESSAGE, StatusCode::FORBIDDEN, 2));
@@ -65,7 +68,7 @@ pub async fn patch_change_password(
     // Hash new password
     let hash_password = hash(&args.new_password)?.to_string();
     // Update record
-    sqlx::query(&User::change_password_query())
+    sqlx::query(User::change_password_query())
         .bind(&hash_password)
         .bind(&args.email)
         .execute(&pg)

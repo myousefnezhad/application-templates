@@ -20,7 +20,7 @@ pub async fn post_customer(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<Customer>>, AppError> {
     let pg = state.pg.clone();
-    let res = sqlx::query_as::<_, Customer>(&Customer::select_base())
+    let res = sqlx::query_as::<_, Customer>(Customer::select_base())
         .fetch_all(&pg)
         .await?;
     debug!("{:#?}", &res);

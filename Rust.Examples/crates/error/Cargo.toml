@@ -26,4 +26,3 @@ adk-cli   = { workspace = true }
 adk-model = { workspace = true }
 adk-rust  = { workspace = true }
 adk-runner = { workspace = true }
-rmcp09 = { workspace = true }

@@ -8,7 +8,6 @@ use axum::{
     response::{Html, Redirect},
 };
 use chrono::{Duration, Utc};
-use rand::Rng;
 use serde::Deserialize;
 use std::sync::Arc;
 use tracing::*;
@@ -146,10 +145,7 @@ pub async fn get_google_callback(
 
     // --- Step 3: Generate internal tokens and regular auth ---
     // Access Token
-    let session: u64 = {
-        let mut rng = rand::thread_rng();
-        rng.r#gen()
-    };
+    let session: u64 = rand::random();
     let iat = Utc::now().timestamp();
     let exp = (Utc::now() + Duration::minutes(jwt_access_session_min)).timestamp();
     let access_claim = Claims {

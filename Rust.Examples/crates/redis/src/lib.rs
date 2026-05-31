@@ -3,7 +3,7 @@
 use deadpool_redis::{
     Config,
     Runtime::Tokio1,
-    redis::{Cmd, ErrorKind::IoError, FromRedisValue, cmd},
+    redis::{Cmd, ErrorKind::Io, FromRedisValue, cmd},
 };
 
 pub use deadpool_redis::Connection;
@@ -24,11 +24,7 @@ impl Redis {
 
     pub async fn _get_connection(pool: &RdPool) -> Result<Connection, RedisError> {
         let mut _client = pool.get().await.map_err(|err| {
-            RedisError::from((
-                IoError,
-                "Error getting redis connection: {}",
-                err.to_string(),
-            ))
+            RedisError::from((Io, "Error getting redis connection: {}", err.to_string()))
         });
         _client
     }

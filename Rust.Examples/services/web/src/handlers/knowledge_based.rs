@@ -20,7 +20,7 @@ pub async fn post_kb(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<KnowledgeBased>>, AppError> {
     let pg = state.pg.clone();
-    let res = sqlx::query_as::<_, KnowledgeBased>(&KnowledgeBased::select_base())
+    let res = sqlx::query_as::<_, KnowledgeBased>(KnowledgeBased::select_base())
         .fetch_all(&pg)
         .await?;
     debug!("{:#?}", &res);

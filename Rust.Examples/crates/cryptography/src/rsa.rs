@@ -1,10 +1,10 @@
 use rsa::{
-    pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
+    pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey},
 };
 
 pub fn encrypt(data: &[u8], public_key: &str) -> Result<Vec<u8>, rsa::Error> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand08::thread_rng();
     let pub_key = RsaPublicKey::from_pkcs1_pem(&public_key).unwrap(); // TODO: Error Handling
     pub_key.encrypt(&mut rng, Pkcs1v15Encrypt, &data[..])
 }
@@ -59,7 +59,7 @@ AqrDQHDzrDgIii1/IkWJifTmJbdTAesWb8Gs3cXKVZyQEu/0RltzjzUigkOwU07a
 BGDjr1RMIaH4orihkrWkTrpPECvabYJns0hgJ8gLr1TW3AYgh2Z1zwdxQISiZy5Q
 5V9hbT31l4V6eC7Mf8wF9DBNmlwX0OztdwIDAQAB
 -----END RSA PUBLIC KEY-----
-"#;        
+"#;
         let data = b"hello world";
         let enc_data = encrypt(data, public_key).unwrap();
         println!("Encrypted: {:?}", enc_data);

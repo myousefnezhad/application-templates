@@ -155,7 +155,7 @@ impl SessionService for PgSessionService {
                 .pool
                 .begin()
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("transaction failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("transaction failed: {e}")))?;
 
             // app state
             let app_state: StateMap =
@@ -163,7 +163,7 @@ impl SessionService for PgSessionService {
                     .bind(&req.app_name)
                     .fetch_optional(&mut *tx)
                     .await
-                    .map_err(|e| adk_core::AdkError::Session(format!("query failed: {e}")))?
+                    .map_err(|e| adk_core::AdkError::session(format!("query failed: {e}")))?
                     .map(|r| r.get::<serde_json::Value, _>("state"))
                     .and_then(|v| serde_json::from_value(v).ok())
                     .unwrap_or_default();
@@ -183,12 +183,12 @@ impl SessionService for PgSessionService {
             .bind(&req.app_name)
             .bind(
                 serde_json::to_value(&new_app_state)
-                    .map_err(|e| adk_core::AdkError::Session(format!("serialize failed: {e}")))?,
+                    .map_err(|e| adk_core::AdkError::session(format!("serialize failed: {e}")))?,
             )
             .bind(now)
             .execute(&mut *tx)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("upsert failed: {e}")))?;
+            .map_err(|e| adk_core::AdkError::session(format!("upsert failed: {e}")))?;
 
             // user state
             let user_state: StateMap = sqlx::query(
@@ -198,7 +198,7 @@ impl SessionService for PgSessionService {
             .bind(&req.user_id)
             .fetch_optional(&mut *tx)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("query failed: {e}")))?
+            .map_err(|e| adk_core::AdkError::session(format!("query failed: {e}")))?
             .map(|r| r.get::<serde_json::Value, _>("state"))
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
@@ -219,12 +219,12 @@ impl SessionService for PgSessionService {
             .bind(&req.user_id)
             .bind(
                 serde_json::to_value(&new_user_state)
-                    .map_err(|e| adk_core::AdkError::Session(format!("serialize failed: {e}")))?,
+                    .map_err(|e| adk_core::AdkError::session(format!("serialize failed: {e}")))?,
             )
             .bind(now)
             .execute(&mut *tx)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("upsert failed: {e}")))?;
+            .map_err(|e| adk_core::AdkError::session(format!("upsert failed: {e}")))?;
 
             // session state (merged)
             let merged_state = Self::merge_states(&new_app_state, &new_user_state, &session_state);
@@ -243,17 +243,17 @@ impl SessionService for PgSessionService {
             .bind(&session_id)
             .bind(
                 serde_json::to_value(&merged_state)
-                    .map_err(|e| adk_core::AdkError::Session(format!("serialize failed: {e}")))?,
+                    .map_err(|e| adk_core::AdkError::session(format!("serialize failed: {e}")))?,
             )
             .bind(now)
             .bind(now)
             .execute(&mut *tx)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("upsert failed: {e}")))?;
+            .map_err(|e| adk_core::AdkError::session(format!("upsert failed: {e}")))?;
 
             tx.commit()
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("commit failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("commit failed: {e}")))?;
 
             Ok(Box::new(PgSession {
                 app_name: req.app_name,
@@ -289,12 +289,12 @@ impl SessionService for PgSessionService {
             .bind(&req.session_id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("query failed: {e}")))?
-            .ok_or_else(|| adk_core::AdkError::Session("session not found".into()))?;
+            .map_err(|e| adk_core::AdkError::session(format!("query failed: {e}")))?
+            .ok_or_else(|| adk_core::AdkError::session("session not found"))?;
 
             let state_val: serde_json::Value = row.get("state");
             let state: StateMap = serde_json::from_value(state_val)
-                .map_err(|e| adk_core::AdkError::Session(format!("deserialize failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("deserialize failed: {e}")))?;
 
             let updated_at: DateTime<Utc> = row.get("updated_at");
 
@@ -305,7 +305,7 @@ impl SessionService for PgSessionService {
             .bind(&req.session_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("events query failed: {e}")))?
+            .map_err(|e| adk_core::AdkError::session(format!("events query failed: {e}")))?
             .into_iter()
             .filter_map(|r| {
                 let llm_response: serde_json::Value = r.get("llm_response");
@@ -316,15 +316,13 @@ impl SessionService for PgSessionService {
                     id: r.get("id"),
                     timestamp: r.get("ts"),
                     invocation_id: r.get("invocation_id"),
-                    invocation_id_camel: r.get("invocation_id"),
                     branch: r.get("branch"),
                     author: r.get("author"),
                     llm_request: None,
                     llm_response: serde_json::from_value(llm_response).ok()?,
                     actions: serde_json::from_value(actions).ok()?,
                     long_running_tool_ids: serde_json::from_value(tool_ids).ok()?,
-                    gcp_llm_request: None,
-                    gcp_llm_response: None,
+                    provider_metadata: HashMap::new(),
                 })
             })
             .collect();
@@ -366,7 +364,7 @@ impl SessionService for PgSessionService {
             .bind(&req.user_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("query failed: {e}")))?;
+            .map_err(|e| adk_core::AdkError::session(format!("query failed: {e}")))?;
 
             let mut out: Vec<Box<dyn Session>> = Vec::new();
             for r in rows {
@@ -405,7 +403,7 @@ impl SessionService for PgSessionService {
             .bind(&req.session_id)
             .execute(&self.pool)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("delete failed: {e}")))?;
+            .map_err(|e| adk_core::AdkError::session(format!("delete failed: {e}")))?;
             Ok(())
         })
     }
@@ -431,7 +429,7 @@ impl SessionService for PgSessionService {
                 .pool
                 .begin()
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("transaction failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("transaction failed: {e}")))?;
 
             let row = sqlx::query(
                 "SELECT app_name, user_id, state FROM adk.sessions WHERE session_id=$1",
@@ -439,15 +437,15 @@ impl SessionService for PgSessionService {
             .bind(session_id)
             .fetch_optional(&mut *tx)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("query failed: {e}")))?
-            .ok_or_else(|| adk_core::AdkError::Session("session not found".into()))?;
+            .map_err(|e| adk_core::AdkError::session(format!("query failed: {e}")))?
+            .ok_or_else(|| adk_core::AdkError::session("session not found"))?;
 
             let app_name: String = row.get("app_name");
             let user_id: String = row.get("user_id");
 
             let mut state: StateMap =
                 serde_json::from_value::<StateMap>(row.get::<serde_json::Value, _>("state"))
-                    .map_err(|e| adk_core::AdkError::Session(format!("deserialize failed: {e}")))?;
+                    .map_err(|e| adk_core::AdkError::session(format!("deserialize failed: {e}")))?;
 
             let (app_delta, user_delta, session_delta) =
                 Self::extract_state_deltas(&event.actions.state_delta);
@@ -477,12 +475,21 @@ impl SessionService for PgSessionService {
             .bind(&event.branch)
             .bind(&event.author)
             .bind(event.timestamp)
-            .bind(serde_json::to_value(&event.llm_response)?)
-            .bind(serde_json::to_value(&event.actions)?)
-            .bind(serde_json::to_value(&event.long_running_tool_ids)?)
+            .bind(
+                serde_json::to_value(&event.llm_response)
+                    .map_err(|e| AdkError::session(e.to_string()))?,
+            )
+            .bind(
+                serde_json::to_value(&event.actions)
+                    .map_err(|e| AdkError::session(e.to_string()))?,
+            )
+            .bind(
+                serde_json::to_value(&event.long_running_tool_ids)
+                    .map_err(|e| AdkError::session(e.to_string()))?,
+            )
             .execute(&mut *tx)
             .await
-            .map_err(|e| adk_core::AdkError::Session(format!("insert event failed: {e}")))?;
+            .map_err(|e| adk_core::AdkError::session(format!("insert event failed: {e}")))?;
 
             // persist app/user state deltas
             if !app_delta.is_empty() {
@@ -491,7 +498,7 @@ impl SessionService for PgSessionService {
                         .bind(&app_name)
                         .fetch_optional(&mut *tx)
                         .await
-                        .map_err(|e| adk_core::AdkError::Session(format!("query failed: {e}")))?
+                        .map_err(|e| adk_core::AdkError::session(format!("query failed: {e}")))?
                         .map(|r| r.get::<serde_json::Value, _>("state"))
                         .and_then(|v| serde_json::from_value(v).ok())
                         .unwrap_or_default();
@@ -507,11 +514,11 @@ impl SessionService for PgSessionService {
                     "#,
                 )
                 .bind(&app_name)
-                .bind(serde_json::to_value(&merged).map_err(|e| adk_core::AdkError::Session(format!("serialize failed: {e}")))?)
+                .bind(serde_json::to_value(&merged).map_err(|e| adk_core::AdkError::session(format!("serialize failed: {e}")))?)
                 .bind(event.timestamp)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("upsert failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("upsert failed: {e}")))?;
             }
 
             if !user_delta.is_empty() {
@@ -522,7 +529,7 @@ impl SessionService for PgSessionService {
                 .bind(&user_id)
                 .fetch_optional(&mut *tx)
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("query failed: {e}")))?
+                .map_err(|e| adk_core::AdkError::session(format!("query failed: {e}")))?
                 .map(|r| r.get::<serde_json::Value, _>("state"))
                 .and_then(|v| serde_json::from_value(v).ok())
                 .unwrap_or_default();
@@ -539,29 +546,29 @@ impl SessionService for PgSessionService {
                 )
                 .bind(&app_name)
                 .bind(&user_id)
-                .bind(serde_json::to_value(&merged).map_err(|e| adk_core::AdkError::Session(format!("serialize failed: {e}")))?)
+                .bind(serde_json::to_value(&merged).map_err(|e| adk_core::AdkError::session(format!("serialize failed: {e}")))?)
                 .bind(event.timestamp)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("upsert failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("upsert failed: {e}")))?;
             }
 
             // update session row
             sqlx::query("UPDATE adk.sessions SET state=$1, updated_at=$2 WHERE session_id=$3")
                 .bind(
                     serde_json::to_value(&state).map_err(|e| {
-                        adk_core::AdkError::Session(format!("serialize failed: {e}"))
+                        adk_core::AdkError::session(format!("serialize failed: {e}"))
                     })?,
                 )
                 .bind(event.timestamp)
                 .bind(session_id)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("update session failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("update session failed: {e}")))?;
 
             tx.commit()
                 .await
-                .map_err(|e| adk_core::AdkError::Session(format!("commit failed: {e}")))?;
+                .map_err(|e| adk_core::AdkError::session(format!("commit failed: {e}")))?;
 
             Ok(())
         })

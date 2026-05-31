@@ -73,7 +73,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
         // Run one turn; stream events
         let mut stream = runner
-            .run(user_id.to_string(), session_id.to_string(), input)
+            .run_str(&user_id.to_string(), &session_id.to_string(), input)
             .await?;
         let buf = stream_response_parser(&mut stream, Some(&mut history)).await?;
         println!("{}", &buf);

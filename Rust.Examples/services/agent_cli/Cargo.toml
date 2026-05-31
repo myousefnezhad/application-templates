@@ -9,7 +9,6 @@ uuid = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 dotenv = { workspace = true }
-rmcp09 = { workspace = true }
 futures = { workspace = true }
 reqwest = { workspace = true }
 adk-agent = { workspace = true }

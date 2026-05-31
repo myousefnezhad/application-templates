@@ -15,6 +15,7 @@ use rmcp::{
     },
     tool, tool_router,
 };
+use sqlx::AssertSqlSafe;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -69,7 +70,7 @@ impl RagTools {
             Some(x) => x,
         };
 
-        let results = sqlx::query_as::<_, KnowledgeBased>(&format!("SELECT id, chunk, created_at FROM rag.knowledge_based WHERE 1 - (embedding <=> $1::vector) >= {} ORDER BY embedding <=> $1::vector LIMIT 5;", confident))
+        let results = sqlx::query_as::<_, KnowledgeBased>(AssertSqlSafe(format!("SELECT id, chunk, created_at FROM rag.knowledge_based WHERE 1 - (embedding <=> $1::vector) >= {} ORDER BY embedding <=> $1::vector LIMIT 5;", confident)))
             .bind(&content_embd)
             .fetch_all(&pg)
             .await
