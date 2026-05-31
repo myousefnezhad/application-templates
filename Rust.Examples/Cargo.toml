@@ -1,18 +1,18 @@
 [workspace]
 resolver = "2"
 members = [
-  "libraries/adk_utils",
-  "libraries/agent", 
-  "libraries/app_state",
-  "libraries/config",
-  "libraries/cryptography",
-  "libraries/dto",
-  "libraries/error",
-  "libraries/log",
-  "libraries/middleware",
-  "libraries/redis",
-  "libraries/schema",
-  "libraries/tools",
+  "crates/adk_utils",
+  "crates/agent", 
+  "crates/state",
+  "crates/config",
+  "crates/cryptography",
+  "crates/dto",
+  "crates/error",
+  "crates/log",
+  "crates/middleware",
+  "crates/redis",
+  "crates/schema",
+  "crates/tools",
   "services/agent_cli",
   "services/web",
   "services/mcp", 
@@ -79,16 +79,16 @@ rmcp = { version = "1.4.0", features = [ "server", "macros", "client", "transpor
 rmcp09 = { package = "rmcp", version = "0.9.1", features = ["client", "reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
 
 # Internal Libraries
-app_adk_utils = { path = "./libraries/adk_utils", package = "adk_utils" }
-app_agent = { path = "./libraries/agent", package = "agent" }
-app_config = { path = "./libraries/config", package = "config" }
-app_cryptography = { path = "./libraries/cryptography", package = "cryptography" }
-app_dto = { path = "./libraries/dto", package = "dto" }
-app_error = { path = "./libraries/error", package = "error" }
-app_log = { path = "./libraries/log", package = "log" }
-app_state = { path = "./libraries/app_state", package = "app_state" }
-app_middleware = { path = "./libraries/middleware", package = "middleware" }
-app_redis = { path = "./libraries/redis", package = "redis" }
-app_schema = { path = "./libraries/schema", package = "schema" }
-app_tools = { path = "./libraries/tools", package = "tools" }
-app_llama_cpp = { path = "./libraries/llama_cpp", package = "llama_cpp" }
+app_adk_utils = { path = "./crates/adk_utils", package = "adk_utils" }
+app_agent = { path = "./crates/agent", package = "agent" }
+app_config = { path = "./crates/config", package = "config" }
+app_cryptography = { path = "./crates/cryptography", package = "cryptography" }
+app_dto = { path = "./crates/dto", package = "dto" }
+app_error = { path = "./crates/error", package = "error" }
+app_log = { path = "./crates/log", package = "log" }
+app_state = { path = "./crates/state", package = "state" }
+app_middleware = { path = "./crates/middleware", package = "middleware" }
+app_redis = { path = "./crates/redis", package = "redis" }
+app_schema = { path = "./crates/schema", package = "schema" }
+app_tools = { path = "./crates/tools", package = "tools" }
+app_llama_cpp = { path = "./crates/llama_cpp", package = "llama_cpp" }
