@@ -66,6 +66,8 @@ pub async fn agent_builder(
         .instruction(config.agent_instruction.clone())
         .model(Arc::new(llm_model));
     for t in mcp_tools {
+        // println!("Tool name: {}", &t.name());
+        // println!("Schema: {:#?}", &t.parameters_schema());
         builder = builder.tool(Arc::new(AdkInjectSessionTool::new(t)));
     }
     // Add Google Search Tools
