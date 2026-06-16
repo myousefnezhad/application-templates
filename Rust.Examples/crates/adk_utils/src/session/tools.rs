@@ -70,9 +70,12 @@ impl Tool for AdkInjectSessionTool {
         self.inner.description()
     }
 
+    fn parameters_schema(&self) -> Option<Value> {
+        self.inner.parameters_schema()
+    }
+
     async fn execute(&self, ctx: Arc<dyn ToolContext>, args: Value) -> Result<Value> {
         let mut obj = ensure_object(args);
-        // Pull identity directly from ToolContext
         obj.insert(
             ADK_TOOL_PERFIX.to_string(),
             json!({
