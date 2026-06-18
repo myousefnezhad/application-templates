@@ -3,6 +3,22 @@ from config import Config
 from inference import TokenGenerator, debug_print
 
 
+# def build_prompt_tokens(generator, prompt: str) -> list[int]:
+#     """
+#     Wrap the raw prompt in Gemma 4's chat template (single user turn +
+#     generation prompt) so the instruction-tuned model responds as in chat.
+#     Falls back to a plain encode if the template is unavailable.
+#     """
+#     tok = generator.tokenizer
+#     try:
+#         return tok.apply_chat_template(
+#             [{"role": "user", "content": prompt}],
+#             add_generation_prompt=True,
+#             tokenize=True,
+#         )
+#     except Exception as e:
+#         debug_print(f"apply_chat_template failed ({e}); using plain encode.")
+#         return tok.encode(prompt)
 def build_prompt_tokens(generator, prompt: str) -> list[int]:
     """
     Wrap the raw prompt in Gemma 4's chat template (single user turn +
@@ -11,15 +27,24 @@ def build_prompt_tokens(generator, prompt: str) -> list[int]:
     """
     tok = generator.tokenizer
     try:
-        return tok.apply_chat_template(
+        res = tok.apply_chat_template(
             [{"role": "user", "content": prompt}],
             add_generation_prompt=True,
             tokenize=True,
         )
+        # FIX: Handle dictionary structures returned by Hugging Face tokenizers
+        if isinstance(res, dict):
+            res = res.get("input_ids", [])
+        elif isinstance(res, str):
+            res = tok.encode(res)
+            
+        return [int(t) for t in res]
     except Exception as e:
         debug_print(f"apply_chat_template failed ({e}); using plain encode.")
-        return tok.encode(prompt)
-
+        res = tok.encode(prompt)
+        if isinstance(res, dict):
+            res = res.get("input_ids", [])
+        return [int(t) for t in res]
 
 def main():
     config = Config

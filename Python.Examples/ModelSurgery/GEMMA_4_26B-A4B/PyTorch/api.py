@@ -41,8 +41,7 @@ def _messages_to_dicts(messages) -> list[dict]:
 def build_prompt_tokens(req: ChatCompletionRequest) -> list[int]:
     """
     Use the tokenizer's built-in Gemma 4 chat template. It natively understands
-    system/user/assistant/tool roles, tool schemas, and thinking mode - so we
-    don't hand-assemble control tokens the way the GPT-OSS/Harmony server did.
+    system/user/assistant/tool roles, tool schemas, and thinking mode.
     """
     tok = generator.tokenizer
     msgs = _messages_to_dicts(req.messages)
@@ -50,11 +49,33 @@ def build_prompt_tokens(req: ChatCompletionRequest) -> list[int]:
     if req.tools:
         kwargs["tools"] = req.tools
     try:
-        return tok.apply_chat_template(msgs, **kwargs)
+        res = tok.apply_chat_template(msgs, **kwargs)
+        # FIX: Unpack input_ids if the tokenizer returns a dictionary mapping
+        if isinstance(res, dict):
+            res = res.get("input_ids", [])
+        elif isinstance(res, str):
+            res = tok.encode(res)
+        return [int(t) for t in res]
     except Exception as e:
         print(f"[WARN] apply_chat_template failed ({e}); falling back to plain encode.")
         text = "\n".join(f"{m['role']}: {m.get('content','')}" for m in msgs)
-        return tok.encode(text)
+        res = tok.encode(text)
+        if isinstance(res, dict):
+            res = res.get("input_ids", [])
+        return [int(t) for t in res]
+
+# def build_prompt_tokens(req: ChatCompletionRequest) -> list[int]:
+#     tok = generator.tokenizer
+#     msgs = _messages_to_dicts(req.messages)
+#     kwargs = dict(add_generation_prompt=True, tokenize=True)
+#     if req.tools:
+#         kwargs["tools"] = req.tools
+#     try:
+#         return tok.apply_chat_template(msgs, **kwargs)
+#     except Exception as e:
+#         print(f"[WARN] apply_chat_template failed ({e}); falling back to plain encode.")
+#         text = "\n".join(f"{m['role']}: {m.get('content','')}" for m in msgs)
+#         return tok.encode(text)
 
 
 def _tool_to_openai(tool, request_id_suffix: str) -> dict:

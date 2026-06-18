@@ -350,6 +350,57 @@ class DenseMLP(nn.Module):
         return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
 
 
+# class MoE(nn.Module):
+#     """
+#     Sparse Mixture-of-Experts: 128 experts, top-8 routing, GeGLU experts with
+#     intermediate 704. Experts are stored as stacked tensors:
+#         gate_up_proj : (num_experts, hidden, 2 * moe_intermediate)
+#         down_proj    : (num_experts, moe_intermediate, hidden)
+#     """
+#     def __init__(self, configs: ModelConfigs, device=None):
+#         super().__init__()
+#         self.configs = configs
+#         self.num_experts = configs.num_experts
+#         self.top_k = configs.top_k_experts
+#         H = configs.hidden_size
+#         I = configs.moe_intermediate_size
+#         self.act = _act_fn(configs.hidden_activation)
+
+#         self.router_proj = nn.Linear(H, self.num_experts, bias=False, device=device, dtype=torch.bfloat16)
+#         # VERIFY: exact use of these Gemma-4 router scalars vs the HF reference.
+#         #self.router_scale = nn.Parameter(torch.ones((), device=device, dtype=torch.float32))
+        
+#         self.per_expert_scale = nn.Parameter(torch.ones(self.num_experts, device=device, dtype=torch.float32))
+
+#         self.gate_up_proj = nn.Parameter(torch.empty(self.num_experts, H, 2 * I, device=device, dtype=torch.bfloat16))
+#         self.down_proj = nn.Parameter(torch.empty(self.num_experts, I, H, device=device, dtype=torch.bfloat16))
+
+#     def forward(self, x):
+#         B, T, H = x.shape
+#         flat = x.reshape(B * T, H)
+
+#         #logits = self.router_proj(flat).float() * self.router_scale  # (N, E)
+#         router_in = flat * self.router_scale.to(dtype=flat.dtype)
+#         logits = self.router_proj(router_in).float()
+#         probs = torch.softmax(logits, dim=-1)
+#         topw, topi = probs.topk(self.top_k, dim=-1)                  # (N, k)
+#         # VERIFY: per-expert scale applied multiplicatively to the gate weight.
+#         topw = topw * self.per_expert_scale[topi]
+
+#         out = torch.zeros_like(flat)
+#         for slot in range(self.top_k):
+#             idx = topi[:, slot]            # (N,)  expert id per token
+#             w = topw[:, slot].unsqueeze(-1).to(flat.dtype)
+#             for e in idx.unique():
+#                 m = idx == e
+#                 xe = flat[m]               # (n, H)
+#                 gu = xe @ self.gate_up_proj[e]        # (n, 2I)
+#                 gate, up = gu.chunk(2, dim=-1)
+#                 he = self.act(gate) * up              # (n, I)
+#                 ye = he @ self.down_proj[e]           # (n, H)
+#                 out[m] += w[m] * ye
+#         return out.reshape(B, T, H)
+
 class MoE(nn.Module):
     """
     Sparse Mixture-of-Experts: 128 experts, top-8 routing, GeGLU experts with
@@ -367,8 +418,9 @@ class MoE(nn.Module):
         self.act = _act_fn(configs.hidden_activation)
 
         self.router_proj = nn.Linear(H, self.num_experts, bias=False, device=device, dtype=torch.bfloat16)
-        # VERIFY: exact use of these Gemma-4 router scalars vs the HF reference.
-        self.router_scale = nn.Parameter(torch.ones((), device=device, dtype=torch.float32))
+        
+        # FIX: Changed shape from () to (H,) to match the checkpoint's channel-wise scaling
+        self.router_scale = nn.Parameter(torch.ones(H, device=device, dtype=torch.float32))
         self.per_expert_scale = nn.Parameter(torch.ones(self.num_experts, device=device, dtype=torch.float32))
 
         self.gate_up_proj = nn.Parameter(torch.empty(self.num_experts, H, 2 * I, device=device, dtype=torch.bfloat16))
@@ -378,10 +430,11 @@ class MoE(nn.Module):
         B, T, H = x.shape
         flat = x.reshape(B * T, H)
 
-        logits = self.router_proj(flat).float() * self.router_scale  # (N, E)
+        # Flat is (N, H) and router_scale is (H,). They will broadcast correctly.
+        router_in = flat * self.router_scale.to(dtype=flat.dtype)
+        logits = self.router_proj(router_in).float()
         probs = torch.softmax(logits, dim=-1)
         topw, topi = probs.topk(self.top_k, dim=-1)                  # (N, k)
-        # VERIFY: per-expert scale applied multiplicatively to the gate weight.
         topw = topw * self.per_expert_scale[topi]
 
         out = torch.zeros_like(flat)
@@ -397,6 +450,7 @@ class MoE(nn.Module):
                 ye = he @ self.down_proj[e]           # (n, H)
                 out[m] += w[m] * ye
         return out.reshape(B, T, H)
+
 
 
 class FeedForwardBlock(nn.Module):
