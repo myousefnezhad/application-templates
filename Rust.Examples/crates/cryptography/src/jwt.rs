@@ -67,6 +67,7 @@ mod test {
             name: "test".to_owned(),
             email: "test@unit".to_owned(),
             session: 1,
+            source: "test".to_owned(),
         };
         let config = AppConfig::new();
         let secret = config.jwt_access_key;
