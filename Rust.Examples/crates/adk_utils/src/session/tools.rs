@@ -70,8 +70,40 @@ impl Tool for AdkInjectSessionTool {
         self.inner.description()
     }
 
+    fn enhanced_description(&self) -> String {
+        self.inner.enhanced_description()
+    }
+
+    fn declaration(&self) -> Value {
+        self.inner.declaration()
+    }
+
     fn parameters_schema(&self) -> Option<Value> {
         self.inner.parameters_schema()
+    }
+
+    fn response_schema(&self) -> Option<Value> {
+        self.inner.response_schema()
+    }
+
+    fn is_long_running(&self) -> bool {
+        self.inner.is_long_running()
+    }
+
+    fn is_builtin(&self) -> bool {
+        self.inner.is_builtin()
+    }
+
+    fn required_scopes(&self) -> &[&str] {
+        self.inner.required_scopes()
+    }
+
+    fn is_read_only(&self) -> bool {
+        self.inner.is_read_only()
+    }
+
+    fn is_concurrency_safe(&self) -> bool {
+        self.inner.is_concurrency_safe()
     }
 
     async fn execute(&self, ctx: Arc<dyn ToolContext>, args: Value) -> Result<Value> {
