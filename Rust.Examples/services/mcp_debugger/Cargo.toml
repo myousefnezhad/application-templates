@@ -1,0 +1,21 @@
+[package]
+name = "mcp_debugger"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+uuid = { workspace = true }
+rmcp = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+app_log = { workspace = true }
+reqwest = { workspace = true }
+tracing = { workspace = true }
+adk-core = { workspace = true }
+adk-tool = { workspace = true }
+adk-rust = { workspace = true }
+app_config = { workspace = true }
+serde_json = { workspace = true }
+app_adk_utils = { workspace = true }
+tracing-subscriber = { workspace = true }

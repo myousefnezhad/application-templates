@@ -16,6 +16,7 @@ members = [
   "services/agent_cli",
   "services/web",
   "services/mcp",
+  "services/mcp_debugger",
 ]
 
 [workspace.package]

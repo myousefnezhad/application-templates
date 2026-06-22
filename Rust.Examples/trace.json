@@ -1,0 +1,10 @@
+{
+  "_adk": {
+    "app_name": "agent_test",
+    "user_id": "1234",
+    "session_id": "Session1",
+    "agent_name": "Agent1",
+    "invocation_id": "uuid",
+    "branch": "main"
+  }
+}

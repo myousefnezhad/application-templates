@@ -3266,6 +3266,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "mcp_debugger"
+version = "0.1.0"
+dependencies = [
+ "adk-core",
+ "adk-rust",
+ "adk-tool",
+ "adk_utils",
+ "anyhow",
+ "config",
+ "log 0.1.0",
+ "reqwest 0.13.4",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "md-5"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
