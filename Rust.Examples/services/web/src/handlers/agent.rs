@@ -13,6 +13,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::debug;
 use uuid::Uuid;
 
 #[derive(Template)]
@@ -116,7 +117,12 @@ pub async fn post_agent(
         Err(e) => return Err(AppError::internal(&format!("{}", &e))),
     };
     // Generating Answer
-    let content = stream_response_parser(&mut stream, None).await?;
+    let res = stream_response_parser(&mut stream, None).await?;
+    debug!(
+        "=========================\nFinal Response: {}\n>>>>>>>>>>>>>>>>>>>>>\nReasoning: {}\n%%%%%%%%%%%%%%%%%%%%%%%\nFunctions: {}\nTools: {}\n=========================",
+        &res.response, &res.thinkings, &res.functions, &res.tools
+    );
+    let content = res.response.clone();
 
     Ok(Json(ChatPostOutput {
         session_id: agent_current_session.clone(),

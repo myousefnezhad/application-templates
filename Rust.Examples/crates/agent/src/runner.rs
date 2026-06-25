@@ -2,12 +2,22 @@ use adk_core::{AdkError, EventStream};
 use adk_rust::prelude::{Event, Part};
 use futures::StreamExt;
 
+pub struct AgentResponse {
+    pub response: String,
+    pub thinkings: String,
+    pub functions: String,
+    pub tools: String,
+}
+
 pub async fn stream_response_parser(
     stream: &mut EventStream,
     mut history: Option<&mut Vec<Event>>,
-) -> Result<String, AdkError> {
+) -> Result<AgentResponse, AdkError> {
     // Print only the final response content
-    let mut buf = String::new();
+    let mut response = String::new();
+    let mut thinkings = String::new();
+    let mut functions = String::new();
+    let mut tools = String::new();
 
     while let Some(ev) = stream.next().await {
         let ev = ev?;
@@ -18,7 +28,23 @@ pub async fn stream_response_parser(
             Some(ctx) => {
                 for part in ctx.parts.iter() {
                     match &part {
-                        Part::Text { text } => buf.push_str(&text),
+                        Part::Thinking { thinking, .. } => thinkings.push_str(&thinking),
+                        _ => (),
+                    }
+                    match &part {
+                        Part::Text { text } => response.push_str(&text),
+                        _ => (),
+                    }
+                    match &part {
+                        Part::FunctionResponse {
+                            function_response, ..
+                        } => functions.push_str(&format!("{:?}", &function_response)),
+                        _ => (),
+                    }
+                    match &part {
+                        Part::ServerToolResponse {
+                            server_tool_response,
+                        } => tools.push_str(&format!("{:?}", &server_tool_response)),
                         _ => (),
                     }
                 }
@@ -26,5 +52,11 @@ pub async fn stream_response_parser(
             None => (),
         }
     }
-    Ok(buf)
+
+    Ok(AgentResponse {
+        response,
+        thinkings,
+        tools,
+        functions,
+    })
 }
