@@ -152,21 +152,30 @@ def _act_fn(name: str):
 # --------------------------------------------------------------------------- #
 class Gemma4RMSNorm(nn.Module):
     """
-    Gemma 4 RMSNorm. IMPORTANT: unlike Gemma 1/2/3 (which apply `(1 + weight)`),
-    the Gemma 4 reference applies the scale as a *plain* multiply - the saved
-    weights are already centred at 1.0. Computation is done in fp32.
+    Gemma RMSNorm with ZERO-CENTERED weights, applied as `(1 + weight)`.
+
+    The whole Gemma family (1/2/3/4) stores norm weights centred at 0 and scales
+    by `(1 + weight)` at inference; computation is done in fp32. Applying a plain
+    `weight` multiply against zero-centred weights scales every normalized signal
+    by ~0, which collapses activations toward zero, yields near-uniform logits,
+    and produces random-token output. The parameter is therefore initialised to
+    zeros so an unloaded norm acts as identity.
+
+    Sanity check after load_state: `model.norm.weight.mean()` should be ~0 (not
+    ~1). If it is ~1, the checkpoint really is pre-offset and you'd revert to a
+    plain multiply -- but for any standard Gemma checkpoint it will be ~0.
     """
     def __init__(self, dim: int, eps: float = 1e-6, device: torch.device | None = None):
         super().__init__()
         self.eps = eps
-        self.weight = nn.Parameter(torch.ones(dim, device=device, dtype=torch.float32))
+        self.weight = nn.Parameter(torch.zeros(dim, device=device, dtype=torch.float32))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         dtype = x.dtype
         t = x.float()
         # torch.pow(.., -0.5) (not rsqrt) to match the reference numerics.
         t = t * torch.pow(t.pow(2).mean(-1, keepdim=True) + self.eps, -0.5)
-        t = t * self.weight.float()
+        t = t * (1.0 + self.weight.float())
         return t.to(dtype)
 
 
@@ -562,9 +571,11 @@ class Transformer(nn.Module):
             if t.shape != dst.shape:
                 # scalars / 1-D vectors stored with a different but equivalent shape
                 if dst.ndim <= 1 and t.numel() == dst.numel():
+                    print(f"[LOAD] reshaping {name}: {tuple(t.shape)} -> {tuple(dst.shape)}")
                     t = t.reshape(dst.shape)
                 # stacked expert tensors may be stored transposed on the last two dims
                 elif transpose_ok and t.ndim >= 2 and t.transpose(-1, -2).shape == dst.shape:
+                    print(f"[LOAD] transposing {name}: {tuple(t.shape)} -> {tuple(dst.shape)}")
                     t = t.transpose(-1, -2).contiguous()
             if t.shape != dst.shape:
                 raise RuntimeError(
