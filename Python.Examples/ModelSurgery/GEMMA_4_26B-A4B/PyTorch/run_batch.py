@@ -2,23 +2,6 @@ import time
 from config import Config
 from inference import TokenGenerator, debug_print
 
-
-# def build_prompt_tokens(generator, prompt: str) -> list[int]:
-#     """
-#     Wrap the raw prompt in Gemma 4's chat template (single user turn +
-#     generation prompt) so the instruction-tuned model responds as in chat.
-#     Falls back to a plain encode if the template is unavailable.
-#     """
-#     tok = generator.tokenizer
-#     try:
-#         return tok.apply_chat_template(
-#             [{"role": "user", "content": prompt}],
-#             add_generation_prompt=True,
-#             tokenize=True,
-#         )
-#     except Exception as e:
-#         debug_print(f"apply_chat_template failed ({e}); using plain encode.")
-#         return tok.encode(prompt)
 def build_prompt_tokens(generator, prompt: str) -> list[int]:
     """
     Wrap the raw prompt in Gemma 4's chat template (single user turn +

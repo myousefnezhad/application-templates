@@ -152,30 +152,21 @@ def _act_fn(name: str):
 # --------------------------------------------------------------------------- #
 class Gemma4RMSNorm(nn.Module):
     """
-    Gemma RMSNorm with ZERO-CENTERED weights, applied as `(1 + weight)`.
-
-    The whole Gemma family (1/2/3/4) stores norm weights centred at 0 and scales
-    by `(1 + weight)` at inference; computation is done in fp32. Applying a plain
-    `weight` multiply against zero-centred weights scales every normalized signal
-    by ~0, which collapses activations toward zero, yields near-uniform logits,
-    and produces random-token output. The parameter is therefore initialised to
-    zeros so an unloaded norm acts as identity.
-
-    Sanity check after load_state: `model.norm.weight.mean()` should be ~0 (not
-    ~1). If it is ~1, the checkpoint really is pre-offset and you'd revert to a
-    plain multiply -- but for any standard Gemma checkpoint it will be ~0.
+    Gemma 4 RMSNorm. IMPORTANT: unlike Gemma 1/2/3 (which apply `(1 + weight)`),
+    the Gemma 4 reference applies the scale as a *plain* multiply - the saved
+    weights are already centred at 1.0. Computation is done in fp32.
     """
     def __init__(self, dim: int, eps: float = 1e-6, device: torch.device | None = None):
         super().__init__()
         self.eps = eps
-        self.weight = nn.Parameter(torch.zeros(dim, device=device, dtype=torch.float32))
+        self.weight = nn.Parameter(torch.ones(dim, device=device, dtype=torch.float32))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         dtype = x.dtype
         t = x.float()
         # torch.pow(.., -0.5) (not rsqrt) to match the reference numerics.
         t = t * torch.pow(t.pow(2).mean(-1, keepdim=True) + self.eps, -0.5)
-        t = t * (1.0 + self.weight.float())
+        t = t * self.weight.float()
         return t.to(dtype)
 
 
@@ -309,6 +300,10 @@ class AttentionBlock(nn.Module):
 
         probs = torch.softmax(scores.float(), dim=-1).to(v.dtype)
         out = torch.einsum("bhgtc,bchgd->bthgd", probs, v)
+        # if self.layer_idx in (0, 29):
+        #     w = probs[0, :, :, -1, :]        # last query's weights over the context
+        #     print(f"  L{self.layer_idx:02d} global={self.is_global} ctx={w.shape[-1]} "
+        #           f"peak={w.max().item():.3f} uniform={1.0 / w.shape[-1]:.3f}")
         return out.reshape(B, T, Hq * D)
 
     def forward(self, x, cache: Cache | None = None):
@@ -357,58 +352,6 @@ class DenseMLP(nn.Module):
 
     def forward(self, x):
         return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
-
-
-# class MoE(nn.Module):
-#     """
-#     Sparse Mixture-of-Experts: 128 experts, top-8 routing, GeGLU experts with
-#     intermediate 704. Experts are stored as stacked tensors:
-#         gate_up_proj : (num_experts, hidden, 2 * moe_intermediate)
-#         down_proj    : (num_experts, moe_intermediate, hidden)
-#     """
-#     def __init__(self, configs: ModelConfigs, device=None):
-#         super().__init__()
-#         self.configs = configs
-#         self.num_experts = configs.num_experts
-#         self.top_k = configs.top_k_experts
-#         H = configs.hidden_size
-#         I = configs.moe_intermediate_size
-#         self.act = _act_fn(configs.hidden_activation)
-
-#         self.router_proj = nn.Linear(H, self.num_experts, bias=False, device=device, dtype=torch.bfloat16)
-#         # VERIFY: exact use of these Gemma-4 router scalars vs the HF reference.
-#         #self.router_scale = nn.Parameter(torch.ones((), device=device, dtype=torch.float32))
-        
-#         self.per_expert_scale = nn.Parameter(torch.ones(self.num_experts, device=device, dtype=torch.float32))
-
-#         self.gate_up_proj = nn.Parameter(torch.empty(self.num_experts, H, 2 * I, device=device, dtype=torch.bfloat16))
-#         self.down_proj = nn.Parameter(torch.empty(self.num_experts, I, H, device=device, dtype=torch.bfloat16))
-
-#     def forward(self, x):
-#         B, T, H = x.shape
-#         flat = x.reshape(B * T, H)
-
-#         #logits = self.router_proj(flat).float() * self.router_scale  # (N, E)
-#         router_in = flat * self.router_scale.to(dtype=flat.dtype)
-#         logits = self.router_proj(router_in).float()
-#         probs = torch.softmax(logits, dim=-1)
-#         topw, topi = probs.topk(self.top_k, dim=-1)                  # (N, k)
-#         # VERIFY: per-expert scale applied multiplicatively to the gate weight.
-#         topw = topw * self.per_expert_scale[topi]
-
-#         out = torch.zeros_like(flat)
-#         for slot in range(self.top_k):
-#             idx = topi[:, slot]            # (N,)  expert id per token
-#             w = topw[:, slot].unsqueeze(-1).to(flat.dtype)
-#             for e in idx.unique():
-#                 m = idx == e
-#                 xe = flat[m]               # (n, H)
-#                 gu = xe @ self.gate_up_proj[e]        # (n, 2I)
-#                 gate, up = gu.chunk(2, dim=-1)
-#                 he = self.act(gate) * up              # (n, I)
-#                 ye = he @ self.down_proj[e]           # (n, H)
-#                 out[m] += w[m] * ye
-#         return out.reshape(B, T, H)
 
 class MoE(nn.Module):
     """
@@ -550,6 +493,9 @@ class Transformer(nn.Module):
         cap = self.configs.final_logit_softcapping
         if cap:
             logits = cap * torch.tanh(logits / cap)
+        # top = torch.topk(logits[0, -1].float(), 5)
+        # print("  logits top5 ids:", [int(i) for i in top.indices],
+        #       "vals:", [round(float(v), 2) for v in top.values])
         return logits.float()
 
     # ----------------------------------------------------------------- #
@@ -571,11 +517,11 @@ class Transformer(nn.Module):
             if t.shape != dst.shape:
                 # scalars / 1-D vectors stored with a different but equivalent shape
                 if dst.ndim <= 1 and t.numel() == dst.numel():
-                    print(f"[LOAD] reshaping {name}: {tuple(t.shape)} -> {tuple(dst.shape)}")
+                    # print(f"[LOAD] reshaping {name}: {tuple(t.shape)} -> {tuple(dst.shape)}")
                     t = t.reshape(dst.shape)
                 # stacked expert tensors may be stored transposed on the last two dims
                 elif transpose_ok and t.ndim >= 2 and t.transpose(-1, -2).shape == dst.shape:
-                    print(f"[LOAD] transposing {name}: {tuple(t.shape)} -> {tuple(dst.shape)}")
+                    # print(f"[LOAD] transposing {name}: {tuple(t.shape)} -> {tuple(dst.shape)}")
                     t = t.transpose(-1, -2).contiguous()
             if t.shape != dst.shape:
                 raise RuntimeError(
