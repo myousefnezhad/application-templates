@@ -289,6 +289,8 @@ class AttentionBlock(nn.Module):
 
         # logits: (B, Hkv, G, T, Ctx)
         scores = torch.einsum("bthgd,bchgd->bhgtc", q, k) * self.scaling
+        # Apply attention soft-capping (cap = 50.0)
+        # scores = 50.0 * torch.tanh(scores / 50.0) 
 
         # causal mask aligned to the cache
         mask = torch.triu(q.new_full((T, Ctx), float("-inf")), diagonal=offset + 1)
@@ -313,6 +315,7 @@ class AttentionBlock(nn.Module):
 
         q = self.q_proj(h).view(B, T, self.num_heads, self.head_dim)
         k = self.k_proj(h).view(B, T, self.num_kv_heads, self.head_dim)
+        # k = self.k_norm(k)  # Normalize K first!
         # Unified KV on global layers: V reuses the (raw) K projection. RoPE is
         # never applied to V, and k_norm is K-specific, so V stays the raw
         # projection here. VERIFY against modeling_gemma4 if global-layer
@@ -334,6 +337,7 @@ class AttentionBlock(nn.Module):
         attn = self._sdpa(q, k, v, offset)
         attn = self.o_proj(attn)
         attn = self.post_attention_layernorm(attn)   # Gemma sandwich norm
+        # return attn # residual + attn
         return residual + attn
 
 
@@ -434,6 +438,7 @@ class FeedForwardBlock(nn.Module):
         dense = self.post_dense(self.mlp(self.pre_dense(x)))
         moe = self.post_moe(self.moe(self.pre_moe(x)))
         combined = self.post_combined(dense + moe)
+        # return combined # residual + combined
         return residual + combined
 
 
@@ -452,6 +457,15 @@ class DecoderLayer(nn.Module):
         x = self.self_attn(x, cache=cache)
         x = self.feed_forward(x)
         return x * self.layer_scalar.to(x.dtype)
+        # # 1. Get the Attention update, scale it, and add to residual
+        # attn_update = self.self_attn(x, cache=cache)
+        # x = x + attn_update * self.layer_scalar.to(x.dtype)
+    
+        # # 2. Get the FeedForward update, scale it, and add to residual
+        # ff_update = self.feed_forward(x)
+        # x = x + ff_update * self.layer_scalar.to(x.dtype)
+    
+        # return x
 
 
 class Transformer(nn.Module):

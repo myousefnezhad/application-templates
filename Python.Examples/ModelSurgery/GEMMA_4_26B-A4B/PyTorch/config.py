@@ -29,7 +29,7 @@ class Config:
 
     # Gemma 4 instruction-tuned models are tuned for sampling; 1.0 is the
     # reference default. Lower it for more deterministic output.
-    temperature: float = 1.0
+    temperature: float = 0.1
     top_p: float = 0.95
 
     # 0 -> use the model's full context window (max_position_embeddings).
