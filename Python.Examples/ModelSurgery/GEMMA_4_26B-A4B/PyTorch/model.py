@@ -23,10 +23,18 @@ Architecture summary (from config.json + the HF `modeling_gemma4` reference):
     704, GeGLU).
   - Final logits are tanh-softcapped at 30.
 
-Spots that could NOT be fully verified from public sources are marked
-`# VERIFY:` - these are the Gemma-4-specific scalars (router.scale,
-router.per_expert_scale, layer_scalar) and the exact ordering of the five
-feed-forward norms. They are implemented with the most likely wiring.
+Verified against the HF `modeling_gemma4` reference (text path of the
+`gemma-4-26B-A4B-it` checkpoint):
+  - attention scaling is 1.0 (queries are per-head RMS-normed by q_norm);
+  - V is RMS-normed (no scale) and never receives RoPE;
+  - global layers use proportional p-RoPE built as a full-length frequency
+    table with the non-rotary tail zeroed (half-offset pairing), NOT a
+    leading-slice split;
+  - the MoE router normalises (RMSNorm, no scale), scales by router.scale and
+    hidden_size**-0.5, top-k weights are renormalised to sum 1 and then scaled
+    by per_expert_scale, and routing is decided from the RAW block residual;
+  - the five feed-forward norms map as documented in FeedForwardBlock;
+  - each layer output is multiplied by the learned layer_scalar.
 """
 
 import os
@@ -156,17 +164,24 @@ class Gemma4RMSNorm(nn.Module):
     the Gemma 4 reference applies the scale as a *plain* multiply - the saved
     weights are already centred at 1.0. Computation is done in fp32.
     """
-    def __init__(self, dim: int, eps: float = 1e-6, device: torch.device | None = None):
+    def __init__(self, dim: int, eps: float = 1e-6, with_scale: bool = True,
+                 device: torch.device | None = None):
         super().__init__()
         self.eps = eps
-        self.weight = nn.Parameter(torch.ones(dim, device=device, dtype=torch.float32))
+        self.with_scale = with_scale
+        # In the reference, some norms (the value norm `v_norm` and the MoE
+        # router norm) are created with `with_scale=False`: they have NO learnable
+        # weight and are pure RMS normalisation.
+        if with_scale:
+            self.weight = nn.Parameter(torch.ones(dim, device=device, dtype=torch.float32))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         dtype = x.dtype
         t = x.float()
         # torch.pow(.., -0.5) (not rsqrt) to match the reference numerics.
         t = t * torch.pow(t.pow(2).mean(-1, keepdim=True) + self.eps, -0.5)
-        t = t * self.weight.float()
+        if self.with_scale:
+            t = t * self.weight.float()
         return t.to(dtype)
 
 
@@ -187,28 +202,36 @@ class RotaryEmbedding(nn.Module):
     that preserves low-frequency (semantic) dimensions over long contexts.
     """
     def __init__(self, head_dim: int, rotary_dim: int, theta: float,
-                 max_pos: int, device: torch.device | None = None):
+                 device: torch.device | None = None):
         super().__init__()
         self.head_dim = head_dim
         self.rotary_dim = rotary_dim
-        # Only the inverse frequencies are stored; cos/sin are computed on the
-        # fly for the (few) positions actually needed. Precomputing a full
-        # max_position_embeddings (262144) table per layer would cost GBs.
-        inv_freq = 1.0 / (
-            theta ** (torch.arange(0, rotary_dim, 2, dtype=torch.float32, device=device) / rotary_dim)
-        )
+        # IMPORTANT: this mirrors the reference "proportional" RoPE exactly.
+        # The frequency table has length head_dim/2 (NOT rotary_dim/2). Only the
+        # first rotary_dim/2 entries are nonzero; the rest are 0 so that, after
+        # `emb = cat(freqs, freqs)` and the standard half-offset `rotate_half`,
+        # the non-rotary dims see cos=1/sin=0 and pass through unchanged.
+        #
+        # This differs from the usual "split off the first `rotary_dim` columns
+        # and rotate those" partial-RoPE: there, dim d pairs with d+rotary_dim/2,
+        # whereas here dim d pairs with d+head_dim/2. The trained Q/K projections
+        # and per-head QK-norms expect the half-offset pairing, so the table must
+        # be built this way for global (p-RoPE) layers to produce correct output.
+        half = head_dim // 2
+        inv_freq = torch.zeros(half, dtype=torch.float32, device=device)
+        n_rot = rotary_dim // 2
+        idx = torch.arange(0, rotary_dim, 2, dtype=torch.float32, device=device)
+        inv_freq[:n_rot] = 1.0 / (theta ** (idx / rotary_dim))
         self.register_buffer("inv_freq", inv_freq, persistent=False)
 
     def apply(self, x: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
         # x: (B, T, H, head_dim); positions: (T,)
-        freqs = torch.outer(positions.float(), self.inv_freq)   # (T, rotary_dim/2)
-        emb = torch.cat((freqs, freqs), dim=-1)                 # (T, rotary_dim)
+        freqs = torch.outer(positions.float(), self.inv_freq)   # (T, head_dim/2)
+        emb = torch.cat((freqs, freqs), dim=-1)                 # (T, head_dim)
         cos = emb.cos().to(x.dtype)[None, :, None, :]
         sin = emb.sin().to(x.dtype)[None, :, None, :]
-        if self.rotary_dim < self.head_dim:
-            x_rot, x_pass = x[..., : self.rotary_dim], x[..., self.rotary_dim :]
-            x_rot = x_rot * cos + _rotate_half(x_rot) * sin
-            return torch.cat((x_rot, x_pass), dim=-1)
+        # Applied over the FULL head_dim; the zeroed frequencies make the
+        # non-rotary dimensions a no-op.
         return x * cos + _rotate_half(x) * sin
 
 
@@ -251,8 +274,11 @@ class AttentionBlock(nn.Module):
         self.k_eq_v = configs.attention_k_eq_v and self.is_global
         self.sliding_window = 0 if self.is_global else configs.sliding_window
 
-        q_pre = configs.query_pre_attn_scalar
-        self.scaling = (q_pre ** -0.5) if q_pre is not None else (self.head_dim ** -0.5)
+        # Gemma4 attention uses scaling = 1.0 (NOT head_dim**-0.5). Queries are
+        # already RMS-normalised per head by `q_norm`, and the reference sets
+        # `self.scaling = 1.0`. Using head_dim**-0.5 here flattens the softmax
+        # (scores shrink ~16-22x) and was a primary cause of garbage output.
+        self.scaling = 1.0
 
         self.input_layernorm = Gemma4RMSNorm(configs.hidden_size, configs.rms_norm_eps, device=device)
         self.q_proj = nn.Linear(configs.hidden_size, self.num_heads * self.head_dim, bias=False, device=device, dtype=torch.bfloat16)
@@ -265,6 +291,11 @@ class AttentionBlock(nn.Module):
         # QK-norm over head_dim (per head), like Gemma 3.
         self.q_norm = Gemma4RMSNorm(self.head_dim, configs.rms_norm_eps, device=device)
         self.k_norm = Gemma4RMSNorm(self.head_dim, configs.rms_norm_eps, device=device)
+        # V-norm: RMSNorm over head_dim WITHOUT a learnable scale. The reference
+        # always normalises the value projection (with_scale=False), including on
+        # global k==v layers where V is the *raw* k_proj output. It has no weight,
+        # so there is nothing to load for it.
+        self.v_norm = Gemma4RMSNorm(self.head_dim, configs.rms_norm_eps, with_scale=False, device=device)
 
         self.post_attention_layernorm = Gemma4RMSNorm(configs.hidden_size, configs.rms_norm_eps, device=device)
 
@@ -274,8 +305,7 @@ class AttentionBlock(nn.Module):
             rotary_dim = int(self.head_dim * configs.rope_partial_rotary_factor_global)
             theta = configs.rope_theta_global
         self.rope = RotaryEmbedding(
-            self.head_dim, rotary_dim, theta,
-            max_pos=configs.max_position_embeddings, device=device,
+            self.head_dim, rotary_dim, theta, device=device,
         )
 
     def _sdpa(self, q, k, v, offset):
@@ -315,16 +345,15 @@ class AttentionBlock(nn.Module):
 
         q = self.q_proj(h).view(B, T, self.num_heads, self.head_dim)
         k = self.k_proj(h).view(B, T, self.num_kv_heads, self.head_dim)
-        # k = self.k_norm(k)  # Normalize K first!
-        # Unified KV on global layers: V reuses the (raw) K projection. RoPE is
-        # never applied to V, and k_norm is K-specific, so V stays the raw
-        # projection here. VERIFY against modeling_gemma4 if global-layer
-        # outputs look off (the alternative is V = k_norm(K) pre-RoPE).
+        # Unified KV on global layers: V reuses the *raw* K projection (before
+        # k_norm / RoPE). On local layers V comes from its own v_proj.
         v = k if self.k_eq_v else self.v_proj(h).view(B, T, self.num_kv_heads, self.head_dim)
 
         # QK-norm (per head, over head_dim), applied before RoPE.
         q = self.q_norm(q)
         k = self.k_norm(k)
+        # V is normalised (no scale) and never gets RoPE.
+        v = self.v_norm(v)
 
         offset = int(cache.offset.item()) if cache is not None else 0
         positions = torch.arange(T, device=x.device, dtype=torch.long) + offset
@@ -361,8 +390,21 @@ class MoE(nn.Module):
     """
     Sparse Mixture-of-Experts: 128 experts, top-8 routing, GeGLU experts with
     intermediate 704. Experts are stored as stacked tensors:
-        gate_up_proj : (num_experts, hidden, 2 * moe_intermediate)
-        down_proj    : (num_experts, moe_intermediate, hidden)
+        gate_up_proj : (num_experts, hidden, 2 * moe_intermediate)   [transposed at load]
+        down_proj    : (num_experts, moe_intermediate, hidden)       [transposed at load]
+
+    Routing (matches Gemma4TextRouter):
+        h = rms_norm_no_scale(route_input)
+        h = h * router_scale * hidden_size**-0.5
+        probs = softmax(proj(h))
+        topw, topi = topk(probs, k)
+        topw = topw / topw.sum(-1)              # renormalise to sum 1
+        topw = topw * per_expert_scale[topi]
+
+    IMPORTANT: the router sees the *raw residual* (the block input), while the
+    experts process the `pre_feedforward_layernorm_2`-normed input. These are two
+    different views of the same hidden state, so routing and expert inputs are
+    passed separately.
     """
     def __init__(self, configs: ModelConfigs, device=None):
         super().__init__()
@@ -373,25 +415,33 @@ class MoE(nn.Module):
         I = configs.moe_intermediate_size
         self.act = _act_fn(configs.hidden_activation)
 
+        # Router. `router_norm` is RMSNorm WITHOUT scale (no weight to load).
+        self.router_norm = Gemma4RMSNorm(H, configs.rms_norm_eps, with_scale=False, device=device)
         self.router_proj = nn.Linear(H, self.num_experts, bias=False, device=device, dtype=torch.bfloat16)
-        
-        # FIX: Changed shape from () to (H,) to match the checkpoint's channel-wise scaling
-        self.router_scale = nn.Parameter(torch.ones(H, device=device, dtype=torch.float32))
+        self.router_scale = nn.Parameter(torch.ones(H, device=device, dtype=torch.float32))            # router.scale
         self.per_expert_scale = nn.Parameter(torch.ones(self.num_experts, device=device, dtype=torch.float32))
+        self.scalar_root_size = H ** -0.5
 
         self.gate_up_proj = nn.Parameter(torch.empty(self.num_experts, H, 2 * I, device=device, dtype=torch.bfloat16))
         self.down_proj = nn.Parameter(torch.empty(self.num_experts, I, H, device=device, dtype=torch.bfloat16))
 
-    def forward(self, x):
-        B, T, H = x.shape
-        flat = x.reshape(B * T, H)
-
-        # Flat is (N, H) and router_scale is (H,). They will broadcast correctly.
-        router_in = flat * self.router_scale.to(dtype=flat.dtype)
-        logits = self.router_proj(router_in).float()
+    def _route(self, x_route):
+        flat = x_route.reshape(-1, x_route.shape[-1])
+        h = self.router_norm(flat)
+        h = h * self.router_scale.to(h.dtype) * self.scalar_root_size
+        logits = self.router_proj(h).float()
         probs = torch.softmax(logits, dim=-1)
         topw, topi = probs.topk(self.top_k, dim=-1)                  # (N, k)
+        # Renormalise the kept top-k weights to sum to 1, THEN apply per-expert scale.
+        topw = topw / topw.sum(dim=-1, keepdim=True)
         topw = topw * self.per_expert_scale[topi]
+        return topw, topi
+
+    def forward(self, x_expert, x_route):
+        B, T, H = x_expert.shape
+        flat = x_expert.reshape(B * T, H)
+
+        topw, topi = self._route(x_route)
 
         out = torch.zeros_like(flat)
         for slot in range(self.top_k):
@@ -411,15 +461,13 @@ class MoE(nn.Module):
 
 class FeedForwardBlock(nn.Module):
     """
-    Dense GeGLU MLP summed with the sparse MoE, wrapped in Gemma sandwich norms.
+    Dense GeGLU MLP ("shared expert") summed with the sparse MoE, wrapped in
+    Gemma sandwich norms. Verified against modeling_gemma4.Gemma4TextDecoderLayer:
 
-    VERIFY: The checkpoint exposes five FF norms per layer
-    (pre_feedforward_layernorm, pre_feedforward_layernorm_2,
-     post_feedforward_layernorm, post_feedforward_layernorm_1,
-     post_feedforward_layernorm_2). Their exact assignment is not fully
-    documented publicly; the wiring below (separate pre/post norm per branch,
-    plus a combined post-norm) is the most likely interpretation and is the
-    spot most worth checking against modeling_gemma4.py if outputs look off.
+      dense  = post_feedforward_layernorm_1( mlp( pre_feedforward_layernorm(x) ) )
+      moe    = post_feedforward_layernorm_2( experts( pre_feedforward_layernorm_2(x) ) )
+               # routing decided from the RAW residual x (see MoE._route)
+      out    = x + post_feedforward_layernorm( dense + moe )
     """
     def __init__(self, configs: ModelConfigs, device=None):
         super().__init__()
@@ -436,9 +484,9 @@ class FeedForwardBlock(nn.Module):
     def forward(self, x):
         residual = x
         dense = self.post_dense(self.mlp(self.pre_dense(x)))
-        moe = self.post_moe(self.moe(self.pre_moe(x)))
+        # Router sees the RAW residual `x`; experts process pre_moe(x).
+        moe = self.post_moe(self.moe(self.pre_moe(x), x))
         combined = self.post_combined(dense + moe)
-        # return combined # residual + combined
         return residual + combined
 
 
@@ -450,22 +498,18 @@ class DecoderLayer(nn.Module):
         super().__init__()
         self.self_attn = AttentionBlock(configs, layer_idx, device=device)
         self.feed_forward = FeedForwardBlock(configs, device=device)
-        # VERIFY: Gemma4 multiplies the layer output by a learned `layer_scalar`.
+        # Gemma4 multiplies the whole layer output by a learned `layer_scalar`
+        # (initialised to 1.0 and loaded from the checkpoint).
         self.layer_scalar = nn.Parameter(torch.ones((), device=device, dtype=torch.float32))
 
     def forward(self, x, cache: Cache | None = None):
+        # Each sub-block already adds its own residual internally:
+        #   self_attn:     x -> x + post_attention_layernorm(attn(input_layernorm(x)))
+        #   feed_forward:  x -> x + post_feedforward_layernorm(dense + moe)
+        # then the full layer output is scaled by layer_scalar.
         x = self.self_attn(x, cache=cache)
         x = self.feed_forward(x)
         return x * self.layer_scalar.to(x.dtype)
-        # # 1. Get the Attention update, scale it, and add to residual
-        # attn_update = self.self_attn(x, cache=cache)
-        # x = x + attn_update * self.layer_scalar.to(x.dtype)
-    
-        # # 2. Get the FeedForward update, scale it, and add to residual
-        # ff_update = self.feed_forward(x)
-        # x = x + ff_update * self.layer_scalar.to(x.dtype)
-    
-        # return x
 
 
 class Transformer(nn.Module):

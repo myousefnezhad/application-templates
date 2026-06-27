@@ -2,6 +2,34 @@ import time
 from config import Config
 from inference import TokenGenerator, debug_print
 
+def _coerce_to_id_list(res, tok=None) -> list[int]:
+    """
+    Normalise whatever `apply_chat_template` / `encode` returns into a flat
+    list[int] of token ids.
+
+    Handles:
+      - plain list[int]
+      - nested [[...]] (batch dim of 1)
+      - Mapping-like returns (dict, BatchEncoding, UserDict) -> take "input_ids".
+        NOTE: BatchEncoding/UserDict are NOT `dict` subclasses, so we test for
+        the mapping protocol (`keys`) rather than `isinstance(res, dict)`.
+      - str (only when tokenize=False slipped through) -> encode it
+    """
+    # Mapping-like (dict, BatchEncoding, UserDict, ...)
+    if hasattr(res, "keys") and "input_ids" in res:
+        res = res["input_ids"]
+    elif isinstance(res, str):
+        if tok is None:
+            raise ValueError("Got a string but no tokenizer to encode it with.")
+        res = tok.encode(res)
+
+    # Unwrap a leading batch dimension, e.g. [[id, id, ...]]
+    if len(res) > 0 and isinstance(res[0], (list, tuple)):
+        res = res[0]
+
+    return [int(t) for t in res]
+
+
 def build_prompt_tokens(generator, prompt: str) -> list[int]:
     """
     Wrap the raw prompt in Gemma 4's chat template (single user turn +
@@ -14,20 +42,13 @@ def build_prompt_tokens(generator, prompt: str) -> list[int]:
             [{"role": "user", "content": prompt}],
             add_generation_prompt=True,
             tokenize=True,
+            return_dict=False,  # ask for a plain list of ids, not a BatchEncoding
         )
-        # FIX: Handle dictionary structures returned by Hugging Face tokenizers
-        if isinstance(res, dict):
-            res = res.get("input_ids", [])
-        elif isinstance(res, str):
-            res = tok.encode(res)
-            
-        return [int(t) for t in res]
+        return _coerce_to_id_list(res, tok)
     except Exception as e:
         debug_print(f"apply_chat_template failed ({e}); using plain encode.")
         res = tok.encode(prompt)
-        if isinstance(res, dict):
-            res = res.get("input_ids", [])
-        return [int(t) for t in res]
+        return _coerce_to_id_list(res, tok)
 
 def main():
     config = Config
