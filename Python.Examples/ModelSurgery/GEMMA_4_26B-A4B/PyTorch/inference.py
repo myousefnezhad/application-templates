@@ -1,3 +1,4 @@
+import re
 import time
 import json
 import torch
@@ -21,37 +22,108 @@ def get_tokenizer(checkpoint: str = Config.checkpoint_path):
     return AutoTokenizer.from_pretrained(checkpoint)
 
 
-def parse_tool_call(text: str) -> Optional[ToolCall]:
-    """
-    Parse a Gemma 4 tool call. The instruction-tuned models emit calls in a
-    dedicated channel, roughly:
-        <|tool_call>call:tool_name{arg:value,...}<tool_call|>
-    We do a best-effort extraction of the name and a JSON-ish argument blob.
+# Gemma 4 tool-call control tokens (see convert_gemma4_weights._RESPONSE_TEMPLATE
+# and the tokenizer special tokens). A tool call looks like:
+#
+#   <|tool_call>call:NAME{ key: <|"|>string val<|"|>, n: 3, flag: true }<tool_call|>
+#
+# i.e. keys are UNQUOTED and string values are wrapped in the escape token
+# `<|"|>` (not regular quotes). The format may repeat for parallel calls.
+_TC_OPEN = "<|tool_call>"
+_TC_CLOSE = "<tool_call|>"
+_TC_ESC = '<|"|>'  # escape_token, acts as the string delimiter inside arg blobs
+# Matches the call name only; the brace body is extracted with an escape-aware
+# scanner (below) because braces/commas/colons may appear inside string values.
+_TC_NAME_RE = re.compile(r"call:(?P<name>\w+)")
+# Quote bare identifier keys that appear right after `{` or `,` and before `:`.
+_TC_KEY_RE = re.compile(r"([{,]\s*)([A-Za-z_]\w*)(\s*:)")
 
-    VERIFY: the exact tool-call token spelling/format depends on the
-    tokenizer's chat_template; adjust the markers below if your template
-    differs (some builds use `<|tool_call>` / `<tool_call|>`, others vary).
+
+def _extract_braced(s: str, start_search: int = 0):
     """
-    import re
-    m = re.search(r"call:([a-zA-Z0-9_\-]+)\s*\{(.*?)\}", text, re.DOTALL)
-    if m is None:
+    Return the balanced `{...}` substring of `s` at/after `start_search`, treating
+    text inside `<|"|>` ... `<|"|>` as opaque (braces there don't count). The
+    escape token is its own closer, so it simply toggles an "in string" flag.
+    """
+    start = s.find("{", start_search)
+    if start < 0:
         return None
-    name = m.group(1)
-    body = m.group(2).strip()
-    args: dict = {}
-    # Try strict JSON first, then a permissive key:value parse.
+    depth, in_str, i, n = 0, False, start, len(s)
+    while i < n:
+        if s.startswith(_TC_ESC, i):
+            in_str = not in_str
+            i += len(_TC_ESC)
+            continue
+        c = s[i]
+        if not in_str:
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    return s[start:i + 1]
+        i += 1
+    return s[start:]  # unbalanced (truncated generation); return what we have
+
+
+def _toolargs_to_json(body: str) -> dict:
+    """
+    Convert a Gemma 4 tool-call argument blob into a Python dict.
+
+    The blob uses unquoted keys and `<|"|>`-delimited string values, e.g.
+        { location: <|"|>San Francisco, CA<|"|>, unit: <|"|>celsius<|"|>, days: 3 }
+    Splitting on the escape token isolates string contents (odd segments), so
+    delimiters/commas/braces inside strings can't corrupt the parse.
+    """
+    parts = body.split(_TC_ESC)
+    # Even indices are structural JSON; odd indices are literal string contents.
+    rebuilt = []
+    for i, seg in enumerate(parts):
+        if i % 2 == 1:
+            # String literal: emit a properly escaped JSON string.
+            rebuilt.append(json.dumps(seg))
+        else:
+            # Structural: quote bare keys; numbers/true/false/null pass through.
+            rebuilt.append(_TC_KEY_RE.sub(r'\1"\2"\3', seg))
+    json_str = "".join(rebuilt)
     try:
-        args = json.loads("{" + body + "}")
+        return json.loads(json_str)
     except json.JSONDecodeError:
-        for pair in body.split(","):
+        # Permissive fallback: treat every value as a string.
+        args: dict = {}
+        inner = body.strip().lstrip("{").rstrip("}")
+        for pair in inner.split(","):
             if ":" in pair:
                 k, v = pair.split(":", 1)
-                args[k.strip().strip('"')] = v.strip().strip('"')
-    return ToolCall(
-        id=None,
-        type="function",
-        function=ToolFunction(name=name, arguments=json.dumps(args)),
-    )
+                args[k.strip().strip('"')] = v.replace(_TC_ESC, "").strip().strip('"')
+        return args
+
+
+def parse_tool_calls(text: str) -> List[ToolCall]:
+    """Parse all Gemma 4 tool calls present in `text` (supports parallel calls)."""
+    calls: List[ToolCall] = []
+    # Prefer content strictly inside <|tool_call> ... <tool_call|> blocks, but
+    # also tolerate a bare `call:NAME{...}` if the markers were stripped upstream.
+    blocks = re.findall(re.escape(_TC_OPEN) + r"(.*?)" + re.escape(_TC_CLOSE), text, re.DOTALL)
+    search_spaces = blocks if blocks else [text]
+    for space in search_spaces:
+        for m in _TC_NAME_RE.finditer(space):
+            body = _extract_braced(space, m.end())
+            if body is None:
+                continue
+            name = m.group("name")
+            args = _toolargs_to_json(body)
+            calls.append(
+                ToolCall(id=None, type="function",
+                         function=ToolFunction(name=name, arguments=json.dumps(args)))
+            )
+    return calls
+
+
+def parse_tool_call(text: str) -> Optional[ToolCall]:
+    """Parse the first Gemma 4 tool call in `text`, or None. See `parse_tool_calls`."""
+    calls = parse_tool_calls(text)
+    return calls[0] if calls else None
 
 
 class TokenGenerator:
@@ -75,10 +147,20 @@ class TokenGenerator:
             TokenGenerator._tokenizer = get_tokenizer(checkpoint)
         self.tokenizer = TokenGenerator._tokenizer
 
-        # Gemma stop tokens: <end_of_turn> (106) ends an assistant turn; <eos> (1).
-        self.eot_token = self._tok_id("<end_of_turn>", default=106)
-        self.eos_token = self.tokenizer.eos_token_id or 1
-        self.stop_tokens = sorted({t for t in (self.eot_token, self.eos_token) if t is not None})
+        # Gemma 4 ends an assistant turn with `<turn|>` (eot_token), NOT the
+        # legacy `<end_of_turn>`. We stop on `<turn|>` and `<eos>`. `<end_of_turn>`
+        # is kept as a defensive fallback in case a build aliases it.
+        candidate_stops = [
+            self._tok_id("<turn|>"),
+            self._tok_id("<end_of_turn>"),
+            self.tokenizer.eos_token_id,
+            self._tok_id("<eos>"),
+        ]
+        self.eot_token = candidate_stops[0]
+        self.eos_token = self.tokenizer.eos_token_id or self._tok_id("<eos>", default=1)
+        self.stop_tokens = sorted({t for t in candidate_stops if t is not None})
+        if not self.stop_tokens:
+            self.stop_tokens = [1]
         debug_print(f"stop tokens: {self.stop_tokens}")
 
     def _tok_id(self, piece: str, default: Optional[int] = None) -> Optional[int]:

@@ -5,7 +5,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from config import Config
-from inference import TokenGenerator, parse_tool_call
+from inference import TokenGenerator, parse_tool_call, parse_tool_calls
 from schemas import ChatCompletionRequest
 
 app = FastAPI()
@@ -14,11 +14,47 @@ generator = TokenGenerator()
 MODEL_ID = Config.model_id
 
 
+# Gemma 4 control tokens (see convert_gemma4_weights.py special tokens).
+_CONTROL_TOKEN_RE = re.compile(
+    r"<\|turn>|<turn\|>|<\|channel>|<channel\|>|<\|think\|>|"
+    r"<\|tool_response>|<tool_response\|>|<\|tool_call>|<tool_call\|>|"
+    r"<\|tool>|<tool\|>|<\|image>|<image\|>|<\|audio>|<audio\|>|<\|audio\|>|"
+    r'<\|"\|>|<bos>|<eos>|<pad>|<end_of_turn>|<start_of_turn>\w*'
+)
+# Reasoning lives in the "thought" channel; tool calls in their own block. Both
+# are surfaced separately (or hidden) and must not leak into assistant content.
+_THOUGHT_RE = re.compile(r"<\|channel>thought.*?<channel\|>", re.DOTALL)
+_TOOLCALL_RE = re.compile(r"<\|tool_call>.*?<tool_call\|>", re.DOTALL)
+_TURN_PREFIX_RE = re.compile(r"^\s*<\|turn>model\s*")
+
+
 def clean_model_output(text: str) -> str:
-    # Strip Gemma turn/control markers that may leak into decoded text.
-    text = re.sub(r"<end_of_turn>|<eos>|<start_of_turn>\w*", "", text)
-    text = re.sub(r"```(?:json)?", "", text, flags=re.IGNORECASE).replace("```", "")
+    """Final, user-visible assistant content: drop reasoning + tool-call blocks
+    and all Gemma 4 control tokens."""
+    text = _THOUGHT_RE.sub("", text)
+    text = _TOOLCALL_RE.sub("", text)
+    text = _TURN_PREFIX_RE.sub("", text)
+    text = _CONTROL_TOKEN_RE.sub("", text)
     return text.strip()
+
+
+def _visible_content(text: str) -> str:
+    """Streaming-safe view of the visible content produced so far.
+
+    Strips COMPLETE reasoning/tool-call blocks, and additionally hides anything
+    from a still-open (unclosed) `<|channel>`/`<|tool_call>` opener onward, so
+    partial reasoning or tool-call syntax is never streamed as content. No
+    trailing strip, so the running prefix stays stable for suffix diffing.
+    """
+    text = _THOUGHT_RE.sub("", text)
+    text = _TOOLCALL_RE.sub("", text)
+    for opener in ("<|channel>", "<|tool_call>"):
+        idx = text.rfind(opener)
+        if idx != -1:
+            text = text[:idx]
+    text = _TURN_PREFIX_RE.sub("", text)
+    text = _CONTROL_TOKEN_RE.sub("", text)
+    return text
 
 
 # ------------------------------------------------------------------ #
@@ -38,48 +74,48 @@ def _messages_to_dicts(messages) -> list[dict]:
     return out
 
 
+def _coerce_to_id_list(res, tok) -> list[int]:
+    """Normalise apply_chat_template / encode output into a flat list[int].
+    Handles plain lists, nested [[...]] batches, and Mapping-like returns
+    (dict, BatchEncoding, UserDict) — the latter are NOT `dict` subclasses, so
+    we test the mapping protocol via `keys`, not `isinstance(res, dict)`."""
+    if hasattr(res, "keys") and "input_ids" in res:
+        res = res["input_ids"]
+    elif isinstance(res, str):
+        res = tok.encode(res)
+    if len(res) > 0 and isinstance(res[0], (list, tuple)):
+        res = res[0]
+    return [int(t) for t in res]
+
+
 def build_prompt_tokens(req: ChatCompletionRequest) -> list[int]:
     """
     Use the tokenizer's built-in Gemma 4 chat template. It natively understands
-    system/user/assistant/tool roles, tool schemas, and thinking mode.
+    system/user/assistant/tool roles, tool schemas, and thinking mode. The
+    `tools` are what let the model do tool selection, so the template path
+    (not the plain-text fallback) must succeed when tools are present.
     """
     tok = generator.tokenizer
     msgs = _messages_to_dicts(req.messages)
-    kwargs = dict(add_generation_prompt=True, tokenize=True)
+    kwargs = dict(add_generation_prompt=True, tokenize=True, return_dict=False)
     if req.tools:
         kwargs["tools"] = req.tools
     try:
         res = tok.apply_chat_template(msgs, **kwargs)
-        # FIX: Unpack input_ids if the tokenizer returns a dictionary mapping
-        if isinstance(res, dict):
-            res = res.get("input_ids", [])
-        elif isinstance(res, str):
-            res = tok.encode(res)
-        return [int(t) for t in res]
+        return _coerce_to_id_list(res, tok)
     except Exception as e:
+        # NOTE: this fallback drops tool schemas entirely, so tool selection
+        # won't work if we land here. It exists only so plain chat still responds.
         print(f"[WARN] apply_chat_template failed ({e}); falling back to plain encode.")
+        if req.tools:
+            print("[WARN] tools were provided but the template failed -> the model "
+                  "will NOT see the tool definitions and cannot select a tool.")
         text = "\n".join(f"{m['role']}: {m.get('content','')}" for m in msgs)
-        res = tok.encode(text)
-        if isinstance(res, dict):
-            res = res.get("input_ids", [])
-        return [int(t) for t in res]
+        return _coerce_to_id_list(tok.encode(text), tok)
 
-# def build_prompt_tokens(req: ChatCompletionRequest) -> list[int]:
-#     tok = generator.tokenizer
-#     msgs = _messages_to_dicts(req.messages)
-#     kwargs = dict(add_generation_prompt=True, tokenize=True)
-#     if req.tools:
-#         kwargs["tools"] = req.tools
-#     try:
-#         return tok.apply_chat_template(msgs, **kwargs)
-#     except Exception as e:
-#         print(f"[WARN] apply_chat_template failed ({e}); falling back to plain encode.")
-#         text = "\n".join(f"{m['role']}: {m.get('content','')}" for m in msgs)
-#         return tok.encode(text)
-
-
-def _tool_to_openai(tool, request_id_suffix: str) -> dict:
+def _tool_to_openai(tool, request_id_suffix: str, index: int = 0) -> dict:
     return {
+        "index": index,
         "id": f"call_{request_id_suffix}",
         "type": "function",
         "function": {"name": tool.function.name, "arguments": tool.function.arguments},
@@ -112,7 +148,7 @@ def stream_response(req: ChatCompletionRequest):
 
     try:
         generated: list[int] = []
-        prev_text = ""
+        prev_vis = ""
         for token in generator.generate(
             prompt_tokens=tokens,
             temperature=req.temperature,
@@ -122,10 +158,12 @@ def stream_response(req: ChatCompletionRequest):
             generated.append(token)
             text = tok.decode(generated, skip_special_tokens=False)
 
-            # Emit any newly decoded, cleaned text as a content delta.
-            clean = clean_model_output(text)
-            piece = clean[len(clean_model_output(prev_text)):]
-            prev_text = text
+            # Emit only newly produced *visible* content. Reasoning ("thought"
+            # channel) and tool-call blocks are withheld here — including while
+            # a block is still open — so tool-call syntax never leaks as content.
+            vis = _visible_content(text)
+            piece = vis[len(prev_vis):]
+            prev_vis = vis
             if piece:
                 chunk = {
                     "id": request_id, "object": "chat.completion.chunk", "created": created,
@@ -134,14 +172,15 @@ def stream_response(req: ChatCompletionRequest):
                 }
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
-        # After generation: surface a tool call if one was produced.
+        # After generation: surface tool call(s) if any were produced.
         full_text = tok.decode(generated, skip_special_tokens=False)
-        tool = parse_tool_call(full_text)
-        if tool:
+        tools = parse_tool_calls(full_text)
+        if tools:
+            tool_calls = [_tool_to_openai(t, uuid.uuid4().hex[:8], index=i) for i, t in enumerate(tools)]
             chunk = {
                 "id": request_id, "object": "chat.completion.chunk", "created": created,
                 "model": MODEL_ID,
-                "choices": [{"index": 0, "delta": {"tool_calls": [_tool_to_openai(tool, uuid.uuid4().hex[:8])]}, "finish_reason": "tool_calls"}],
+                "choices": [{"index": 0, "delta": {"tool_calls": tool_calls}, "finish_reason": "tool_calls"}],
             }
             yield f"data: {json.dumps(chunk)}\n\n"
         else:
@@ -178,7 +217,7 @@ async def chat(request: Request):
         return_logprobs=False,
     )]
     text = tok.decode(out, skip_special_tokens=False)
-    tool = parse_tool_call(text)
+    tools = parse_tool_calls(text)
 
     base = {
         "id": f"chatcmpl-{uuid.uuid4()}",
@@ -192,10 +231,11 @@ async def chat(request: Request):
         },
     }
 
-    if tool:
+    if tools:
+        tool_calls = [_tool_to_openai(t, uuid.uuid4().hex[:8], index=i) for i, t in enumerate(tools)]
         base["choices"] = [{
             "index": 0,
-            "message": {"role": "assistant", "content": None, "tool_calls": [_tool_to_openai(tool, uuid.uuid4().hex[:8])]},
+            "message": {"role": "assistant", "content": None, "tool_calls": tool_calls},
             "finish_reason": "tool_calls",
         }]
     else:
