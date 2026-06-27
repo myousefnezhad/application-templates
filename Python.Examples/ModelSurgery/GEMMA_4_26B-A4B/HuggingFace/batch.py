@@ -2,7 +2,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 # hf download google/gemma-4-26B-A4B-it --local-dir ../gemma4
 # https://huggingface.co/google/gemma-4-26B-A4B-it/
-MODEL_PATH = "../gemma4"
+MODEL_PATH = "../PyTorch/gemma-4-26B-A4B-it"
 TEXT = "What is the meaning of life?"
 
 def main():
