@@ -19,7 +19,7 @@ class Config:
     checkpoint_path: str = "./gemma-4-26B-A4B-it"
 
     # Reported by /v1/models and echoed back in responses.
-    model_id: str = "gemma-4-26b-a4b-it"
+    model_id: str = "gemma-4-12b-it"
 
     device: torch.device = torch.device(
         "cuda" if torch.cuda.is_available()
