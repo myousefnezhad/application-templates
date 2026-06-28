@@ -18,7 +18,7 @@ class Config:
     debug_mode: bool = True
 
     # Local checkpoint directory: config.json + *.safetensors + tokenizer files.
-    checkpoint_path: str = "../Qwen3.5-35B-A3B"
+    checkpoint_path: str = "../Qwen3.6-35B-A3B"
 
     device: torch.device = _DEVICE
 
