@@ -1,0 +1,8 @@
+[package]
+name = "dioxus_web"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dioxus = { workspace = true, features = ["web"] }
+app_dioxus_core = { workspace = true }

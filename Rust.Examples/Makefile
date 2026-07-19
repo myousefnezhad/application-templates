@@ -18,3 +18,7 @@ run_mcp:
 	cargo run --bin $(MCP_NAME)
 build_mcp:
 	cargo build --bin $(MCP_NAME)
+dioxus_web:
+	dx serve --platform web --package dioxus_web
+dioxus_desktop:
+	cargo run --bin dioxus_desktop

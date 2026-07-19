@@ -1,0 +1,8 @@
+[package]
+name = "dioxus_mobile"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dioxus = { workspace = true, features = ["mobile"] }
+app_dioxus_core = { workspace = true }

@@ -1,0 +1,7 @@
+[package]
+name = "dioxus_core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dioxus = { workspace = true }

@@ -1,0 +1,8 @@
+[package]
+name = "dioxus_desktop"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dioxus = { workspace = true, features = [ "desktop", ]}
+app_dioxus_core = { workspace = true }
