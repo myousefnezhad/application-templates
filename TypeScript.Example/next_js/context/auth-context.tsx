@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { jsonCall } from '@/lib/net/api';
 
 const STORAGE_KEY = 'token';
 
@@ -20,12 +21,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Rehydrate from localStorage on mount (client only)
     useEffect(() => {
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            setIsLogin(!!stored);
+            const checkLoginStatus = async () => {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                const {res, error} = await jsonCall('/auth/ping', 'POST');
+                if (error || !res) {
+                    setIsLogin(false);
+                    setIsLoading(false);
+                    localStorage.removeItem(STORAGE_KEY);
+                    return;
+                } 
+
+
+
+                setIsLogin(!!stored);
+                setIsLoading(false);
+            };
+            checkLoginStatus();
         } catch {
-            // ignore access errors — treat as logged out
+            setIsLoading(false);            
+            setIsLogin(false);
+            localStorage.removeItem(STORAGE_KEY);
         } finally {
             setIsLoading(false);
+            setIsLogin(false);
+            localStorage.removeItem(STORAGE_KEY);
         }
     }, []);
 
