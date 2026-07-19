@@ -1,22 +1,110 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base surfaces — warm cream/tan */
+  --background: #faf6f1;
+  --foreground: #2e2119;
+  --card: #ffffff;
+  --card-foreground: #2e2119;
+  --popover: #ffffff;
+  --popover-foreground: #2e2119;
+
+  /* Muted / secondary text & backgrounds */
+  --muted: #f0e6da;
+  --muted-foreground: #7a6a5a;
+
+  /* Borders & inputs */
+  --border: #e2d5c4;
+  --input: #e2d5c4;
+  --ring: #8b5e3c;
+
+  /* Primary — rich coffee brown */
+  --primary: #6f4e37;
+  --primary-foreground: #faf6f1;
+
+  /* Secondary — soft tan */
+  --secondary: #ede0d0;
+  --secondary-foreground: #4a3826;
+
+  /* Accent — warm caramel */
+  --accent: #e8d5bd;
+  --accent-foreground: #4a3826;
+
+  /* Status colors — tinted warm to stay in family */
+  --success: #6b8e4e;
+  --success-foreground: #ffffff;
+  --warning: #c17817;
+  --warning-foreground: #ffffff;
+  --destructive: #b3492e;
+  --destructive-foreground: #ffffff;
+}
+
+.dark {
+  /* Base surfaces — espresso/dark roast */
+  --background: #1c1410;
+  --foreground: #ede0d0;
+  --card: #251b15;
+  --card-foreground: #ede0d0;
+  --popover: #251b15;
+  --popover-foreground: #ede0d0;
+
+  /* Muted / secondary text & backgrounds */
+  --muted: #2e2119;
+  --muted-foreground: #a8927d;
+
+  /* Borders & inputs */
+  --border: #3d2c22;
+  --input: #3d2c22;
+  --ring: #c89666;
+
+  /* Primary — warm latte */
+  --primary: #c89666;
+  --primary-foreground: #1c1410;
+
+  /* Secondary — dark toffee */
+  --secondary: #3d2c22;
+  --secondary-foreground: #ede0d0;
+
+  /* Accent — burnt caramel */
+  --accent: #4a3826;
+  --accent-foreground: #ede0d0;
+
+  /* Status colors */
+  --success: #8fb56e;
+  --success-foreground: #1c1410;
+  --warning: #e0a03d;
+  --warning-foreground: #1c1410;
+  --destructive: #d97354;
+  --destructive-foreground: #1c1410;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
