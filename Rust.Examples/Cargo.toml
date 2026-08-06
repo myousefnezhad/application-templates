@@ -29,7 +29,6 @@ edition = "2024"
 
 [workspace.dependencies]
 awc = "3.8.2"
-rsa = "0.9.10"
 anyhow = "1.0.104"
 rand = "0.10.2"
 log = "0.4.33"
@@ -44,11 +43,16 @@ adk-agent = "1.0.0"
 adk-core = "1.0.0"
 adk-cli = "1.0.0"
 adk-runner = "1.0.0"
+rsa = "0.10.0-rc.18"
+getrandom = "0.4.3"
+thiserror = "2.0.19"
 base64-url = "3.0.4"
+rand_core = "0.10.1"
 mcp-macros = "0.1.0"
 env_logger = "0.11.8"
 adk-session = "1.0.0"
 derive_more = "2.1.1"
+rand_chacha = "0.10.0"
 adk-artifact = "1.0.0"
 rmcp-macros = "3.1.1"
 futures-util = "0.3.33"
@@ -62,7 +66,6 @@ tokio-pg-mapper-derive = "0.2.0"
 tokio-util = { version = "0.7.19" }
 serde_json = { version = "1.0.151" }
 async-trait = { version = "0.1.91" }
-rand08 = {package = "rand", version = "0.8.6"}
 tokio = { version = "1.53.1", features = ["full"] }
 axum = { version = "0.8.9", features = ["macros"] }
 chrono = { version = "0.4.45", features = ["serde"] }
@@ -111,7 +114,6 @@ rmcp = { version = "3.1.1", features = [
   "auth",
   "elicitation",
   "schemars",
-  "client",
   "reqwest",
   "transport-streamable-http-client",
   "transport-streamable-http-client-reqwest",

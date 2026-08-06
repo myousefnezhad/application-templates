@@ -1,0 +1,6 @@
+cffi==2.1.1
+cryptography==50.0.0
+packaging==26.1
+pycparser==3.0
+setuptools==83.0.0
+wheel==0.47.0
