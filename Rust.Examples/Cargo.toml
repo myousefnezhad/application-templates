@@ -30,13 +30,13 @@ edition = "2024"
 [workspace.dependencies]
 awc = "3.8.2"
 rsa = "0.9.10"
-anyhow = "1.0.102"
-rand = "0.10.1"
+anyhow = "1.0.104"
+rand = "0.10.2"
 log = "0.4.33"
 tower = "0.5.3"
-hyper = "1.10.1"
+hyper = "1.11.0"
 askama = "0.16.0"
-bcrypt = "0.19.2"
+bcrypt = "0.19.3"
 dotenv = "0.15.0"
 tracing = "0.1.44"
 sqlx-core = "0.9.0"
@@ -50,38 +50,38 @@ env_logger = "0.11.8"
 adk-session = "1.0.0"
 derive_more = "2.1.1"
 adk-artifact = "1.0.0"
-rmcp-macros = "1.7.0"
-futures-util = "0.3.32"
+rmcp-macros = "3.1.1"
+futures-util = "0.3.33"
 rust_decimal = "1.38.0"
-http-body-util = "0.1.3"
+http-body-util = "0.1.4"
 tokio-pg-mapper = "0.2.0"
 tokio-postgres = "0.7.18"
 postgres-from-row = "0.5.2"
-futures = { version = "0.3.32" }
+futures = { version = "0.3.33" }
 tokio-pg-mapper-derive = "0.2.0"
-tokio-util = { version = "0.7.18" }
-serde_json = { version = "1.0.150" }
-async-trait = { version = "0.1" }
+tokio-util = { version = "0.7.19" }
+serde_json = { version = "1.0.151" }
+async-trait = { version = "0.1.91" }
 rand08 = {package = "rand", version = "0.8.6"}
-tokio = { version = "1.52.3", features = ["full"] }
+tokio = { version = "1.53.1", features = ["full"] }
 axum = { version = "0.8.9", features = ["macros"] }
 chrono = { version = "0.4.45", features = ["serde"] }
-uuid = { version = "1.23.3", features = ["serde", "v4"] }
+uuid = { version = "1.24.0", features = ["serde", "v4"] }
 bigdecimal = { version = "0.4", features = ["serde"] }
 adk-rust = { version = "1.0.0", features = ["tools"] }
 hyper-util = { version = "0.1.20", features = ["server"] }
 deadpool-redis = { version = "0.23.0", features = ["serde"] }
 postgres-types = { version = "0.2.14", features = ["derive"] }
-schemars = { version = "1.2.1", features = ["derive", "uuid1"] }
+schemars = { version = "1.2.2", features = ["derive", "uuid1"] }
 tower-http = { version = "0.7.0", features = ["cors", "trace", "fs"] }
 reqwest = { version = "0.13.4", features = ["form", "json", "native-tls"] }
 adk-tool = { version = "1.0.0", features = ["http-transport"] }
 adk-model = { version = "1.0.0", features = ["openai", "ollama"] }
-serde = { version = "1.0", features = ["derive", "serde_derive"] }
+serde = { version = "1.0.229", features = ["derive", "serde_derive"] }
 jsonwebtoken = { version = "10.4.0", default-features = false, features = [
   "rust_crypto",
 ] }
-dioxus = { version = "0.7.9", features = [
+dioxus = { version = "0.7.10", features = [
   "signals",
   "macro",
   "html",
@@ -102,7 +102,7 @@ tracing-subscriber = { version = "0.3.23", features = [
   "std",
   "fmt",
 ] }
-rmcp = { version = "1.7.0", features = [
+rmcp = { version = "3.1.1", features = [
   "server",
   "macros",
   "client",

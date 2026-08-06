@@ -2,21 +2,15 @@ use adk_core::{ReadonlyContext, Toolset};
 use adk_model::{OpenAIClient, OpenAIConfig};
 use adk_runner::Runner;
 use adk_rust::prelude::{GoogleSearchTool, LlmAgentBuilder};
-use adk_tool::McpToolset;
+use adk_tool::{McpHttpClientBuilder, McpAuth};
 use app_adk_utils::{
     content::SimpleContext,
     session::{postgres::PgSessionService, tools::AdkInjectSessionTool},
 };
 use app_config::AppConfig;
 use app_error::AppError;
-use rmcp::{
-    ServiceExt,
-    transport::streamable_http_client::{
-        StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
-    },
-};
 use sqlx::postgres::PgPoolOptions;
-use std::{env, sync::Arc};
+use std::{env, sync::Arc, time::Duration};
 
 // This is default sqlx parameter
 // It can be replace with some param from config or other env
@@ -49,16 +43,15 @@ pub async fn agent_builder(
     };
     let llm_model = OpenAIClient::new(model_config).unwrap();
     // MCP Tool Config
-    let mcp_cfg = StreamableHttpClientTransportConfig::with_uri(config.mcp_base_url.clone())
-        .auth_header(&config.mcp_token.clone());
-    let transport = StreamableHttpClientTransport::from_config(mcp_cfg);
-    let mcp_client = ().serve(transport).await.map_err(|e| AppError::internal(e.to_string()))?;
-    let toolset = McpToolset::new(mcp_client);
-    let _cancel = toolset.cancellation_token().await;
     let ctx: Arc<dyn ReadonlyContext> = Arc::new(SimpleContext {
         app_name: Some(config.agent_app_name.clone()),
         ..Default::default()
     });
+    let toolset = McpHttpClientBuilder::new(&config.mcp_base_url)
+        .with_auth(McpAuth::bearer(&config.mcp_token))    
+        .timeout(Duration::from_secs(30))
+        .connect()
+        .await?;
     let mcp_tools = toolset.tools(ctx).await?;
     // Agent Builder
     let mut builder = LlmAgentBuilder::new(config.agent_app_name.clone())

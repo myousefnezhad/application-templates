@@ -83,11 +83,11 @@ impl CalculatorTools {
     ) -> Result<GetPromptResult, McpError> {
         Ok(GetPromptResult::new(vec![
             PromptMessage::new_text(
-                PromptMessageRole::Assistant,
+                Role::Assistant,
                 "You are a helpful math tutor.",
             ),
             PromptMessage::new_text(
-                PromptMessageRole::User,
+                Role::User,
                 format!(
                     "Please explain the steps to solve this expression: {}",
                     args.expression

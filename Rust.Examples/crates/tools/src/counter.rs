@@ -54,7 +54,7 @@ impl CounterTools {
 
     // Helper for resources (internal logic)
     pub fn _create_resource_text(&self, uri: &str, name: &str) -> Resource {
-        RawResource::new(uri, name.to_string()).no_annotation()
+        Resource::new(uri, name.to_string())
     }
 
     #[tool(description = "Increment the counter by provided value")]
@@ -194,7 +194,7 @@ impl CounterTools {
             .await
             .map_err(AppError::from)?;
         Ok(GetPromptResult::new(vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             format!("Current: {}, Goal: {}", counter.counter, args.goal),
         )])
         .with_description("Analysis".to_owned()))
@@ -243,7 +243,7 @@ impl CounterTools {
         };
 
         Ok(GetPromptResult::new(vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             summary_text,
         )])
         .with_description("Counter State Summary".to_owned()))
@@ -258,7 +258,7 @@ impl CounterTools {
         _ctx: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, McpError> {
         Ok(GetPromptResult::new(vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             format!("Summarize the following content:"),
         )])
         .with_description("Counter State Summary".to_owned()))

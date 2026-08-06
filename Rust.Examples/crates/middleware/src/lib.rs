@@ -174,8 +174,10 @@ pub async fn mcp_auth_middleware(
         req.uri()
     );
     let config = state.config.clone();
-    let unauthorized =
-        || AppError::new("Unauthorized", StatusCode::UNAUTHORIZED, 0).into_response();
+    let unauthorized = || {
+        debug!("{:#?}", &req.headers());
+        AppError::new("Unauthorized", StatusCode::UNAUTHORIZED, 0).into_response()
+    };
 
     // IMPORTANT: make the header value owned so we don't keep borrowing `req`
     let auth_header: String = match req

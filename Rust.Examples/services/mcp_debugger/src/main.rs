@@ -2,7 +2,7 @@ mod helper;
 
 use crate::helper::*;
 use adk_core::{ReadonlyContext, Toolset};
-use adk_tool::McpToolset;
+use adk_tool::{McpHttpClientBuilder, McpAuth};
 use anyhow::{Result, anyhow};
 use app_adk_utils::content::SimpleContext;
 use app_config::AppConfig;
@@ -15,7 +15,7 @@ use rmcp::{
     },
 };
 use serde_json::json;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -45,13 +45,12 @@ async fn main() -> Result<()> {
     println!("Connecting to");
     println!("{}", config.mcp_base_url);
     println!();
-    let mcp_cfg = StreamableHttpClientTransportConfig::with_uri(config.mcp_base_url.clone())
-        .auth_header(&config.mcp_token);
-    let transport = StreamableHttpClientTransport::from_config(mcp_cfg.clone());
-    let client = ().serve(transport).await?;
+    let toolset = McpHttpClientBuilder::new(&config.mcp_base_url)
+        .with_auth(McpAuth::bearer(&config.mcp_token))
+        .timeout(Duration::from_secs(30))
+        .connect()
+        .await?;
     println!("Connected");
-    // Reading Tools
-    let toolset = McpToolset::new(client);
     let ctx: Arc<dyn ReadonlyContext> = Arc::new(SimpleContext {
         app_name: Some(debug_ctx.app_name.clone()),
 
@@ -137,6 +136,8 @@ async fn main() -> Result<()> {
     println!("================================");
     println!("{}", serde_json::to_string_pretty(&args)?);
     let req = CallToolRequestParams::new(tool_name).with_arguments(args_obj);
+    let mcp_cfg = StreamableHttpClientTransportConfig::with_uri(config.mcp_base_url.clone())
+        .auth_header(&config.mcp_token);
     let transport = StreamableHttpClientTransport::from_config(mcp_cfg.clone());
     let mut client = ().serve(transport).await?;
     let result = client.call_tool(req).await?;

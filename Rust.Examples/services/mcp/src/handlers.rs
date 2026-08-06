@@ -12,6 +12,8 @@ use rmcp::{
 };
 use std::sync::Arc;
 
+const CACHE_TTL_MS: u64 = 1000; // 1 second
+
 #[derive(Clone)]
 pub struct McpHandler {
     calculator: CalculatorTools,
@@ -81,18 +83,17 @@ impl ServerHandler for McpHandler {
         for t in self.user.tool_router.list_all() {
             tools.push(Tool::new(t.name, t.description.unwrap(), t.input_schema));
         }
-        Ok(ListToolsResult {
-            tools,
-            next_cursor: None,
-            meta: None,
-        })
+        println!("{}", serde_json::to_string_pretty(&tools).unwrap());
+        Ok(ListToolsResult::with_all_items(tools)
+            .with_cache_scope(CacheScope::Public)
+            .with_ttl_ms(CACHE_TTL_MS))
     }
 
     async fn call_tool(
         &self,
         req: CallToolRequestParams,
         mut ctx: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResponse, McpError> {
         ctx.meta.insert(
             "__adk_tool_name".into(),
             JsonValue::String(req.name.clone().to_string()),
@@ -177,18 +178,16 @@ impl ServerHandler for McpHandler {
         all_prompts.extend(counter_prompts.into_iter().map(map_prompt));
         all_prompts.extend(calc_prompts.into_iter().map(map_prompt));
 
-        Ok(ListPromptsResult {
-            prompts: all_prompts,
-            next_cursor: None,
-            meta: None,
-        })
+        Ok(ListPromptsResult::with_all_items(all_prompts)
+            .with_cache_scope(CacheScope::Public)
+            .with_ttl_ms(CACHE_TTL_MS))
     }
 
     async fn get_prompt(
         &self,
         req: GetPromptRequestParams,
         ctx: RequestContext<RoleServer>,
-    ) -> Result<GetPromptResult, McpError> {
+    ) -> Result<GetPromptResponse, McpError> {
         // 1. Check if Counter has this prompt
         if self.counter.prompt_router.has_route(&req.name) {
             let prompt_ctx = PromptContext::new(&self.counter, req.name, req.arguments, ctx);
@@ -215,21 +214,21 @@ impl ServerHandler for McpHandler {
         _ctx: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
         let resources = self.counter.list_my_resources().await;
-        Ok(ListResourcesResult {
-            resources,
-            next_cursor: None,
-            meta: None,
-        })
+        Ok(ListResourcesResult::with_all_items(resources)
+            .with_cache_scope(CacheScope::Public)
+            .with_ttl_ms(CACHE_TTL_MS))
     }
 
     async fn read_resource(
         &self,
         req: ReadResourceRequestParams,
         _ctx: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, McpError> {
+    ) -> Result<ReadResourceResponse, McpError> {
         let content = self.counter.read_my_resource(&req.uri).await?;
-        Ok(ReadResourceResult::new(vec![ResourceContents::text(
-            content, req.uri,
-        )]))
+        Ok(ReadResourceResponse::Complete(
+            ReadResourceResult::new(vec![ResourceContents::text(content, req.uri)])
+                .with_cache_scope(CacheScope::Public)
+                .with_ttl_ms(CACHE_TTL_MS),
+        ))
     }
 }
