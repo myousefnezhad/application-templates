@@ -49,7 +49,37 @@ mod tests {
         let encrypted = encrypt(data, PUBLIC_KEY)?;
         let decrypted = decrypt(&encrypted, PRIVATE_KEY)?;
 
+        println!("Plaintext : {:?}", data);
+        println!("Encrypted : {:02X?}", encrypted); // Hex bytes
+        println!("Encrypted (hex): {}", hex::encode(&encrypted));
+        println!("Decrypted : {}", String::from_utf8_lossy(&decrypted));
+
         assert_ne!(data.as_slice(), encrypted.as_slice());
+        assert_eq!(data.as_slice(), decrypted.as_slice());
+
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "Run manually: writes rust_cipher.bin"]
+    fn save_encrypted_file() -> Result<(), CryptoError> {
+        use std::fs;
+
+        let data = b"hello world";
+
+        // Encrypt
+        let encrypted = encrypt(data, PUBLIC_KEY)?;
+
+        // Save ciphertext
+        fs::write("rust_cipher.bin", &encrypted)
+            .expect("failed to write rust_cipher.bin");
+
+        // Verify we can decrypt it
+        let decrypted = decrypt(&encrypted, PRIVATE_KEY)?;
+
+        println!("Saved {} bytes to rust_cipher.bin", encrypted.len());
+        println!("Decrypted: {}", String::from_utf8_lossy(&decrypted));
+
         assert_eq!(data.as_slice(), decrypted.as_slice());
 
         Ok(())

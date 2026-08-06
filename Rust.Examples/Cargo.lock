@@ -2130,6 +2130,7 @@ dependencies = [
  "bcrypt",
  "config",
  "getrandom 0.4.3",
+ "hex",
  "jsonwebtoken",
  "rand 0.10.2",
  "rand_chacha 0.10.0",

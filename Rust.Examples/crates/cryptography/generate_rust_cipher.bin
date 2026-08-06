@@ -1,0 +1,1 @@
+cargo test -p cryptography save_encrypted_file -- --nocapture

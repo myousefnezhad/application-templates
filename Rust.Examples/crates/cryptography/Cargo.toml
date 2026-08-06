@@ -4,16 +4,15 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+hex = { workspace = true }
 rsa = { workspace = true }
 rand = { workspace = true }
-#rand08 = { workspace = true }
 serde = { workspace = true }
 bcrypt = { workspace = true }
-app_config = { workspace = true }
-base64-url = { workspace = true }
-jsonwebtoken = { workspace = true }
-
-rand_chacha = { workspace = true }
 rand_core = { workspace = true }
 thiserror = { workspace = true }
 getrandom = { workspace = true }
+app_config = { workspace = true }
+base64-url = { workspace = true }
+rand_chacha = { workspace = true }
+jsonwebtoken = { workspace = true }

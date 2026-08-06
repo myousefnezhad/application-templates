@@ -29,6 +29,7 @@ edition = "2024"
 
 [workspace.dependencies]
 awc = "3.8.2"
+hex = "0.4.3"
 anyhow = "1.0.104"
 rand = "0.10.2"
 log = "0.4.33"
