@@ -1,15 +1,16 @@
 use app_schema::auth::users::User;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct PostUserInput {
     pub name: String,
     pub email: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct PatchChangePasswordInput {
     pub email: String,
     pub password: String,

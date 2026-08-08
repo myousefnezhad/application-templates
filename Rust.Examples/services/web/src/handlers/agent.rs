@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::debug;
 use uuid::Uuid;
+use utoipa::ToSchema;
 
 #[derive(Template)]
 #[template(path = "agent.html")]
@@ -25,18 +26,32 @@ pub async fn get_agent() -> Result<Html<String>, AppError> {
     Ok(Html(page.render()?))
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatPostInput {
     pub session_id: Option<String>,
     pub content: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatPostOutput {
     pub session_id: String,
     pub content: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/agent",
+    request_body=ChatPostInput,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Agent data retrieved successfully", body = Vec<ChatPostOutput>),
+        (status = 401, description = "Unauthorized access"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Agent"
+)]
 pub async fn post_agent(
     headers: HeaderMap,
     State(state): State<Arc<AppState>>,

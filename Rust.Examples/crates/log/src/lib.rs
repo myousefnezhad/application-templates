@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::filter::LevelFilter;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogLevel {
     Off,
     Error,

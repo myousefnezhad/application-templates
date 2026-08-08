@@ -2,6 +2,7 @@ use app_schema::customer::Customer;
 use app_schema::kb::KnowledgeBased;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct McpCustomerInformationToolInput {
@@ -11,7 +12,7 @@ pub struct McpCustomerInformationToolInput {
     pub account_number: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct CustomerInformation {
     pub customer_record: Customer,
     pub public_information: Vec<KnowledgeBased>,

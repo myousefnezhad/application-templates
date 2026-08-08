@@ -39,3 +39,5 @@ adk-rust = { workspace = true }
 adk-core = { workspace = true }
 uuid = { workspace = true }
 app_agent = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }

@@ -13,6 +13,20 @@ use sqlx::AssertSqlSafe;
 use std::sync::Arc;
 use tracing::*;
 
+
+#[utoipa::path(
+    get,
+    path = "/auth/user",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "User data retrieved successfully", body = Vec<User>),
+        (status = 401, description = "Unauthorized access"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "User Management"
+)]
 pub async fn get_user(State(state): State<Arc<AppState>>) -> Result<Json<Vec<User>>, AppError> {
     let pg = state.pg.clone();
     let res = sqlx::query_as::<_, User>(User::select_query())
@@ -24,6 +38,20 @@ pub async fn get_user(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Use
 
 const AUTH_FAILD_MESSAGE: &'static str = "Provided information is wrong!";
 
+#[utoipa::path(
+    post,
+    path = "/auth/user",
+    request_body=PostUserInput,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Adding user successful"),
+        (status = 401, description = "Unauthorized access"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "User Management"
+)]
 pub async fn post_user(
     State(state): State<Arc<AppState>>,
     Json(args): Json<PostUserInput>,
@@ -40,6 +68,20 @@ pub async fn post_user(
     Ok(StatusCode::CREATED)
 }
 
+#[utoipa::path(
+    patch,
+    path = "/auth/user",
+    request_body=PatchChangePasswordInput,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Password changed successfully"),
+        (status = 401, description = "Unauthorized access"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "User Management"
+)]
 pub async fn patch_change_password(
     headers: HeaderMap,
     State(state): State<Arc<AppState>>,

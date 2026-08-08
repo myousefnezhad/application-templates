@@ -3,8 +3,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize, Clone, FromRow, Serialize, JsonSchema)]
+#[derive(Debug, Deserialize, Clone, FromRow, Serialize, JsonSchema, ToSchema)]
 pub struct User {
     pub id: Uuid,
     pub email: String,

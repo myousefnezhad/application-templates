@@ -16,6 +16,19 @@ pub async fn get_customer() -> Result<Html<String>, AppError> {
     Ok(Html(page.render()?))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/customer",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Customer data retrieved successfully", body = Vec<Customer>),
+        (status = 401, description = "Unauthorized access"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Customer"
+)]
 pub async fn post_customer(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<Customer>>, AppError> {

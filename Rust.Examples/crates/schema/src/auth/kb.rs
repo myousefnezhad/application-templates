@@ -2,8 +2,9 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, ToSchema)]
 pub struct KnowledgeBased {
     pub id: i64,
     pub chunk: String,

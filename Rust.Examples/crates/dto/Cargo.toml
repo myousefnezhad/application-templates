@@ -7,3 +7,4 @@ edition.workspace = true
 serde = { workspace = true }
 schemars = { workspace = true }
 app_schema = { workspace = true }
+utoipa = { workspace = true }

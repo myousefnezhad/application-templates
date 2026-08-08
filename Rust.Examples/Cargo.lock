@@ -459,7 +459,7 @@ dependencies = [
  "adk-session",
  "async-trait",
  "chrono",
- "rmcp 3.1.1",
+ "rmcp 3.1.2",
  "serde",
  "serde_json",
  "sqlx",
@@ -513,8 +513,8 @@ dependencies = [
  "middleware",
  "rand 0.10.2",
  "redis 0.1.0",
- "rmcp 3.1.1",
- "rmcp-macros 3.1.1",
+ "rmcp 3.1.2",
+ "rmcp-macros 3.1.2",
  "schema",
  "serde",
  "serde_json",
@@ -687,6 +687,9 @@ name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
+dependencies = [
+ "derive_arbitrary",
+]
 
 [[package]]
 name = "arcstr"
@@ -2439,6 +2442,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_arbitrary"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "derive_builder"
 version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3199,6 +3213,7 @@ dependencies = [
  "schema",
  "schemars",
  "serde",
+ "utoipa",
 ]
 
 [[package]]
@@ -3424,8 +3439,8 @@ dependencies = [
  "jsonwebtoken",
  "log 0.4.33",
  "rand 0.10.2",
- "rmcp 3.1.1",
- "rmcp-macros 3.1.1",
+ "rmcp 3.1.2",
+ "rmcp-macros 3.1.2",
  "rsa 0.10.0-rc.18",
  "serde",
  "serde_json",
@@ -3594,6 +3609,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfe33edd8e85a12a67454e37f8c75e730830d83e313556ab9ebf9ee7fbeb3bfb"
 dependencies = [
  "crc32fast",
+ "libz-rs-sys",
  "miniz_oxide",
 ]
 
@@ -4757,6 +4773,8 @@ checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -4983,9 +5001,9 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "10.4.0"
+version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eba32bfb4ffdeaca3e34431072faf01745c9b26d25504aa7a6cf5684334fc4fc"
+checksum = "881733cbc631fc9e472e24447ce32a64bedf2da498d6d8570b08edc87de71f65"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -5198,6 +5216,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "libz-rs-sys"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c10501e7805cee23da17c7790e59df2870c0d4043ec6d03f67d31e2b53e77415"
+dependencies = [
+ "zlib-rs",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5237,8 +5264,8 @@ dependencies = [
  "rand 0.10.2",
  "redis 0.1.0",
  "reqwest 0.13.4",
- "rmcp 3.1.1",
- "rmcp-macros 3.1.1",
+ "rmcp 3.1.2",
+ "rmcp-macros 3.1.2",
  "schema",
  "serde",
  "serde_json",
@@ -5463,8 +5490,8 @@ dependencies = [
  "middleware",
  "rand 0.10.2",
  "redis 0.1.0",
- "rmcp 3.1.1",
- "rmcp-macros 3.1.1",
+ "rmcp 3.1.2",
+ "rmcp-macros 3.1.2",
  "schema",
  "serde",
  "serde_json",
@@ -5491,7 +5518,7 @@ dependencies = [
  "config",
  "log 0.1.0",
  "reqwest 0.13.4",
- "rmcp 3.1.1",
+ "rmcp 3.1.2",
  "serde",
  "serde_json",
  "tokio",
@@ -7239,6 +7266,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex"
+version = "1.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e10754a14b9137dd7b1e3e5b0493cc9171fdd105e0ab477f51b72e7f3ac0e276"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "regex-automata"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7449,9 +7488,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "3.1.1"
+version = "3.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "094c075f6698deef5a657cf4df6b684dff65157d255978b92b552ec22503f17a"
+checksum = "c8dddc5b1924b9a59fba420166160ca2c4663a4e01803e52eda33070f56d63c8"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -7466,7 +7505,7 @@ dependencies = [
  "pin-project-lite",
  "rand 0.10.2",
  "reqwest 0.13.4",
- "rmcp-macros 3.1.1",
+ "rmcp-macros 3.1.2",
  "schemars",
  "serde",
  "serde_json",
@@ -7496,9 +7535,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp-macros"
-version = "3.1.1"
+version = "3.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "737d947bcfd946fae6a179a4ef6487be6dcf25c930c2393856b820f1386e52a6"
+checksum = "6898e24cd16342b59bfa8a53c2c04b9cf62fc8a2cfea57b9c038b09984bfc521"
 dependencies = [
  "darling 0.24.0",
  "proc-macro2",
@@ -7749,6 +7788,7 @@ dependencies = [
  "serde",
  "sqlx",
  "tokio",
+ "utoipa",
  "uuid",
 ]
 
@@ -9160,8 +9200,8 @@ dependencies = [
  "middleware",
  "rand 0.10.2",
  "redis 0.1.0",
- "rmcp 3.1.1",
- "rmcp-macros 3.1.1",
+ "rmcp 3.1.2",
+ "rmcp-macros 3.1.2",
  "schema",
  "serde",
  "serde_json",
@@ -9512,6 +9552,49 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
+name = "utoipa"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bde15df68e80b16c7d16b9616e80770ad158988daa56a27dccd1e55558b0160"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "utoipa-gen",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba0b99ee52df3028635d93840c797102da61f8a7bb3cf751032455895b52ef8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.117",
+ "uuid",
+]
+
+[[package]]
+name = "utoipa-swagger-ui"
+version = "9.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d047458f1b5b65237c2f6dc6db136945667f40a7668627b3490b9513a3d43a55"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "mime_guess",
+ "regex",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "url",
+ "utoipa",
+ "zip",
+]
+
+[[package]]
 name = "uuid"
 version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9778,6 +9861,8 @@ dependencies = [
  "tower-http 0.7.0",
  "tracing",
  "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
  "uuid",
 ]
 
@@ -10747,10 +10832,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "zip"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12598812502ed0105f607f941c386f43d441e00148fce9dec3ca5ffb0bde9308"
+dependencies = [
+ "arbitrary",
+ "crc32fast",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "zopfli",
+]
+
+[[package]]
+name = "zlib-rs"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40990edd51aae2c2b6907af74ffb635029d5788228222c4bb811e9351c0caad3"
+
+[[package]]
 name = "zmij"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
+
+[[package]]
+name = "zopfli"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05cd8797d63865425ff89b5c4a48804f35ba0ce8d125800027ad6017d2b5249"
+dependencies = [
+ "bumpalo",
+ "crc32fast",
+ "log 0.4.33",
+ "simd-adler32",
+]
 
 [[package]]
 name = "zstd"

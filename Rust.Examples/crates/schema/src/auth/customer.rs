@@ -2,8 +2,9 @@ use chrono::NaiveDateTime;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, ToSchema)]
 pub struct Customer {
     pub id: i32,
     pub first_name: String,

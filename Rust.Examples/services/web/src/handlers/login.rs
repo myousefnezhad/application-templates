@@ -31,6 +31,15 @@ pub async fn get_login() -> Result<Html<String>, AppError> {
     Ok(Html(page.render()?))
 }
 
+#[utoipa::path(
+    post,
+    path = "/login",
+    request_body=PostLoginInput,
+    responses(
+        (status = 200, description = "Login successful", body = PostLoginOutput)
+    ),
+    tag = "Authentication"
+)]
 pub async fn post_login(
     State(state): State<Arc<AppState>>,
     Json(args): Json<PostLoginInput>,
@@ -109,6 +118,18 @@ pub async fn post_login(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Logout successful"),
+        (status = 401, description = "Unauthorized")
+    ),
+    tag = "Authentication"
+)]
 pub async fn post_logout(
     headers: HeaderMap,
     State(state): State<Arc<AppState>>,

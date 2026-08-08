@@ -10,3 +10,4 @@ tokio = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 schemars = { workspace = true }
+utoipa = { workspace = true }
