@@ -21,6 +21,7 @@ members = [
   "services/web",
   "services/mcp",
   "services/mcp_debugger",
+  "services/web_proxy",
 ]
 
 [workspace.package]

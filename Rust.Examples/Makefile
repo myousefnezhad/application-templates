@@ -18,6 +18,10 @@ run_mcp:
 	cargo run --bin $(MCP_NAME)
 build_mcp:
 	cargo build --bin $(MCP_NAME)
+web_proxy_proxy:
+	cargo run -p web_proxy --bin proxy
+web_proxy_backend:
+	cargo run -p web_proxy --bin backend
 dioxus_web:
 	dx serve --platform web --package dioxus_web
 dioxus_desktop:
