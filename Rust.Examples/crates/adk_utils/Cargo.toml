@@ -3,6 +3,9 @@ name = "adk_utils"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 rmcp = { workspace = true }
 sqlx = { workspace = true }

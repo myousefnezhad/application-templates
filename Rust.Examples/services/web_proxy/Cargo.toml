@@ -3,6 +3,9 @@ name = "web_proxy"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "backend"
 path = "src/bin/backend.rs"

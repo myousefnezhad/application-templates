@@ -3,6 +3,9 @@ name = "config"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 log = { workspace = true }
 serde = { workspace = true }

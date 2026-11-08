@@ -3,6 +3,9 @@ name = "mcp_debugger"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 uuid = { workspace = true }
 rmcp = { workspace = true }

@@ -3,6 +3,9 @@ name = "mcp"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 awc = { workspace = true }
 axum = { workspace = true }

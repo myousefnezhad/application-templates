@@ -3,6 +3,9 @@ name = "log"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 serde = { workspace = true }
 tracing = { workspace = true }

@@ -3,6 +3,9 @@ name = "dto"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 serde = { workspace = true }
 schemars = { workspace = true }
